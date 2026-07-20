@@ -29,4 +29,4 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 ![n8n](https://img.shields.io/badge/n8n-EA4B71?logo=n8n&logoColor=white)
 
-📫 [Portfolio](https://michaellawrence.dev) · [LinkedIn](https://linkedin.com/in/michael-lawrence-9a98521a2) · michaelawrence23@gmail.com
+📫 [LinkedIn](https://linkedin.com/in/michael-lawrence-9a98521a2) · michaelawrence23@gmail.com
