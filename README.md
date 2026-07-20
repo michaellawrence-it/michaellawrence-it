@@ -20,7 +20,6 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 | [ad-computer-group-automation](https://github.com/michaellawrence-it/ad-computer-group-automation) | Event-driven: new AD computers auto-join LAPS/Intune/policy groups on Event 4741 - running in production |
 | [entra-dynamic-groups](https://github.com/michaellawrence-it/entra-dynamic-groups) | Department/role/location attributes drive all security-group membership |
 | [mdt-imaging-config](https://github.com/michaellawrence-it/mdt-imaging-config) | Manual laptop setup eliminated via MDT task sequences |
-| [n8n-automations](https://github.com/michaellawrence-it/n8n-automations) | AI-scored daily tech-news digest for sysadmins, running unattended every morning |
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?logo=powershell&logoColor=white)
 ![Microsoft 365](https://img.shields.io/badge/Microsoft%20365-D83B01?logo=microsoft&logoColor=white)
