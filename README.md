@@ -10,6 +10,10 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 - **Infrastructure** - Windows Server/Hyper-V hybrid, MDT zero-touch imaging, Intune device lifecycle
 - **A real lab, not a toy** - a self-built Hyper-V host running a Server 2025 domain (AD DS, isolated DNS/DHCP, PXE imaging, RemoteApp behind an internal CA) that mirrors production, plus a self-healing multi-container Docker media platform with automated health checks
 
+**AutomateComply** (founder, in staging ahead of production): an HR compliance-automation service that packages these Power Platform workflows so a small business can run them in its own M365 tenant. [automatecomply.com](https://www.automatecomply.com)
+
+TestOut Security Pro (2024) · Rutgers Cybersecurity Bootcamp (2023) · athenahealth EMR scripting (MEL) · CCNA in progress. I build automation in partnership with AI tools and verify every AI-drafted component before production.
+
 ## Highlights
 | Project | Outcome |
 |---|---|
@@ -20,6 +24,7 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 | [homelab-media-stack](https://github.com/michaellawrence-it/homelab-media-stack) | Self-healing Docker media platform on a 13-drive layout - recovered end-to-end from a dynamic-disk failure |
 | [ad-computer-group-automation](https://github.com/michaellawrence-it/ad-computer-group-automation) | Event-driven: new AD computers auto-join LAPS/Intune/policy groups on Event 4741 - running in production |
 | [entra-dynamic-groups](https://github.com/michaellawrence-it/entra-dynamic-groups) | Department/role/location attributes drive all security-group membership |
+| [powerplatform-alm](https://github.com/michaellawrence-it/powerplatform-alm) | Dev → Sandbox → Production promotion for Power Platform solutions, with a validated rollback path |
 | [mdt-imaging-config](https://github.com/michaellawrence-it/mdt-imaging-config) | Manual laptop setup eliminated via MDT task sequences |
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?logo=powershell&logoColor=white)
