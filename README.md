@@ -13,6 +13,7 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 ## Highlights
 | Project | Outcome |
 |---|---|
+| [identity-onboarding-suite](https://github.com/michaellawrence-it/identity-onboarding-suite) | The full identity lifecycle: AD provisioning → Entra sync → license-gated dynamic groups → device management → two-step time-off approval |
 | [ad-onboarding-automation](https://github.com/michaellawrence-it/ad-onboarding-automation) | Manual account-creation errors eliminated; onboarding scaled 65→120 headcount with 0 added IT staff |
 | [powerapps-employee-evaluations](https://github.com/michaellawrence-it/powerapps-employee-evaluations) | Paper evaluation process replaced org-wide with a model-driven app + automated anniversary flows |
 | [hyperv-ad-lab](https://github.com/michaellawrence-it/hyperv-ad-lab) | Server 2025 domain on a self-built host - dual-vSwitch isolation, PXE imaging, RemoteApp over an internally-issued cert |
