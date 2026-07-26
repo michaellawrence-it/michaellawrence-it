@@ -1,6 +1,6 @@
 /* sw.js — offline shell. Bump CACHE when any file below changes. */
 
-const CACHE = 'ppl-tracker-2026-07-26.2';
+const CACHE = 'ppl-tracker-2026-07-26.3';
 const ASSETS = [
   './',
   './index.html',
@@ -30,13 +30,36 @@ self.addEventListener('activate', (ev) => {
    cache as the fallback when the gym has no signal. */
 self.addEventListener('fetch', (ev) => {
   if (ev.request.method !== 'GET') return;
-  ev.respondWith(
-    fetch(ev.request)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(ev.request, copy)).catch(() => {});
-        return res;
-      })
-      .catch(() => caches.match(ev.request).then((hit) => hit || caches.match('./index.html')))
-  );
+  ev.respondWith(handle(ev.request));
 });
+
+async function handle(request) {
+  try {
+    const res = await fetch(request);
+
+    if (res && res.ok) {
+      const copy = res.clone(); // clone now — the page consumes the original
+      caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+      return res;
+    }
+
+    /* Reachable, but the file isn't being served: Pages switched off, the
+       source branch deleted, a half-finished deploy. fetch() RESOLVES for a
+       404, so caching here would overwrite a working app with an error page
+       and there'd be no way back — not even offline. Keep the good copy. */
+    const cached = await caches.match(request);
+    return cached || res;
+  } catch (err) {
+    // Genuinely offline.
+    const cached = await caches.match(request);
+    if (cached) return cached;
+
+    const shell = await caches.match('./index.html');
+    if (shell) return shell;
+
+    return new Response('Offline, and nothing is cached yet.', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+}
