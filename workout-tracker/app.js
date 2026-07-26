@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.4';
+  const BUILD = '2026-07-26.5';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -328,6 +328,22 @@
   function lastEntryFor(exId) {
     const h = historyFor(exId);
     return h.length ? h[h.length - 1] : null;
+  }
+
+  /* exerciseId -> the most recent session it was worked in. Built in one pass
+     and reused for the whole render; the movement picker asks for ~17 of these
+     per card, and scanning history separately for each would crawl. */
+  let _lastDone = null;
+  function lastDoneIndex() {
+    if (_lastDone) return _lastDone;
+    const idx = new Map();
+    sortedSessions().slice().reverse().forEach((s) => {
+      s.entries.forEach((e) => {
+        if (workingSets(e).length) idx.set(e.exerciseId, s); // newer overwrites older
+      });
+    });
+    _lastDone = idx;
+    return idx;
   }
 
   function bestE1RM(exId) {
@@ -777,11 +793,7 @@
     const targetTxt = `${entry.targetSets} × ${entry.repMin}–${entry.repMax}` +
       (entry.repTarget ? ` &nbsp;<span class="muted">aim ${entry.repTarget}</span>` : '');
 
-    const swap = entry.options && entry.options.length > 1
-      ? `<select class="swap" data-field="swap" data-slot="${entry.slotId}" aria-label="Swap variation" style="width:auto;min-height:34px;padding:5px 26px 5px 9px;font-size:12.5px">
-          ${entry.options.map((o) => `<option value="${o}"${o === entry.exerciseId ? ' selected' : ''}>${esc(exOf(o).name)}</option>`).join('')}
-        </select>`
-      : '';
+    const swap = movementPicker(entry);
 
     const prevLine = sug
       ? `<div class="prev-line">Last ${esc(relDate(sug.lastDate))}: <b>${esc(sug.lastSets.join(', '))}</b>${
@@ -813,12 +825,11 @@
         <span class="idx">${i + 1}</span>
         <span style="flex:1;min-width:0">
           <span class="role" style="display:block">${esc(entry.role)}</span>
-          <span class="name" style="display:block">${esc(ex.name)}</span>
+          ${swap}
           <span class="target" style="display:block">${targetTxt}${
             sugW !== null ? ` &nbsp;·&nbsp; start <b>${fmtW(sugW)} ${esc(unitLabel())}</b>` : ''
           }</span>
         </span>
-        ${swap}
       </header>
 
       <div class="set-list">
@@ -836,6 +847,35 @@
       <input class="note-input" type="text" data-field="note" data-slot="${entry.slotId}" ${entry.note ? '' : 'hidden'}
              value="${esc(entry.note || '')}" placeholder="Form cue, pain, machine setting…">
     </section>`;
+  }
+
+  /* Every movement for the day, grouped by pattern, each showing when it was
+     last worked — so picking is an informed choice, not a guess. */
+  function movementPicker(entry) {
+    const dayKey = state.active ? state.active.day : dayOfExercise(entry.exerciseId);
+    const groups = DAY_POOL[dayKey] || [];
+    const idx = lastDoneIndex();
+    const seen = new Set();
+
+    const opt = (id) => {
+      seen.add(id);
+      const last = idx.get(id);
+      const label = exOf(id).name + (last ? ` · ${relDate(last.date)}` : '');
+      return `<option value="${esc(id)}"${id === entry.exerciseId ? ' selected' : ''}>${esc(label)}</option>`;
+    };
+
+    let html = groups
+      .map((g) => `<optgroup label="${esc(g.group)}">${g.ids.map(opt).join('')}</optgroup>`)
+      .join('');
+
+    // Whatever is currently selected must always be in the list, even if it
+    // predates the pool (old backup, hand-edited data).
+    if (!seen.has(entry.exerciseId)) {
+      html += `<optgroup label="Other"><option value="${esc(entry.exerciseId)}" selected>${esc(exOf(entry.exerciseId).name)}</option></optgroup>`;
+    }
+
+    return `<select class="ex-picker" data-field="swap" data-slot="${entry.slotId}"
+              aria-label="Movement for this slot">${html}</select>`;
   }
 
   function volLine(entry, best) {
@@ -1364,7 +1404,32 @@
 
     if (f === 'swap') {
       const entry = findEntry(el.dataset.slot);
-      if (entry) { entry.exerciseId = el.value; save(); render(); }
+      if (!entry || !state.active) return;
+      const dayKey = state.active.day;
+      entry.exerciseId = el.value;
+
+      /* Carry the new movement's own prescription across — a slot programmed
+         4×5–8 must not hand that target to lateral raises. A movement the
+         program schedules keeps its slot's waved numbers; anything else falls
+         back to its pattern group. */
+      const rx = prescriptionFor(dayKey, el.value, state.active.week, state.cycleLength);
+      entry.targetSets = rx.sets;
+      entry.repMin = rx.repMin;
+      entry.repMax = rx.repMax;
+      entry.repTarget = rx.repTarget;
+      entry.load = rx.load;
+
+      const home = homeSlotOf(dayKey, el.value);
+      const grp = poolGroupOf(dayKey, el.value);
+      entry.role = home ? home.role : grp ? grp.group : entry.role;
+
+      // Keep every set already logged; only empty rows are added or dropped.
+      const kept = entry.sets.filter((s) => s.r && s.r > 0);
+      while (kept.length < rx.sets) kept.push({ w: null, r: null, done: false });
+      entry.sets = kept;
+
+      save();
+      render();
       return;
     }
 
@@ -1482,6 +1547,7 @@
     const hash = location.hash || '#/home';
     const [, route, arg] = hash.split('/');
     const routeKey = `${route || 'home'}/${arg || ''}`;
+    _lastDone = null; // history may have changed since the last paint
     const keepScroll = routeKey === lastRoute;
     const scrollY = window.scrollY;
     chartRegistry.clear();

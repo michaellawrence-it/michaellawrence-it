@@ -123,6 +123,77 @@ const PROGRAM = {
 const DAY_KEYS = ['push', 'pull', 'legs'];
 
 /* ---------------------------------------------------------------------------
+   Day pools
+
+   Every movement that belongs on a day, grouped by pattern. Any slot can be
+   swapped to any movement in its day's pool — the weekly rotation only picks
+   the default, it never locks you in. If you want to chase a lift this week,
+   pick it.
+
+   `sets`/`reps` on a group are the fallback prescription, used only for
+   movements that no slot programs (retired or alternate variations). A
+   movement that does have a home slot keeps that slot's prescription, wave
+   and all.
+--------------------------------------------------------------------------- */
+const DAY_POOL = {
+  push: [
+    { group: 'Presses',   sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'dips', 'ohp_bb'] },
+    { group: 'Chest',     sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly'] },
+    { group: 'Delts',     sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
+    { group: 'Triceps',   sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown'] },
+  ],
+  pull: [
+    { group: 'Pulls',     sets: 3, reps: [6, 10],  ids: ['deadlift', 'pullup', 'neutral_pullup', 'chinup', 'bb_row', 'lat_pulldown', 'close_pulldown', 'low_row', 'chest_supp_row'] },
+    { group: 'Rear delts', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly'] },
+    { group: 'Biceps',    sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl'] },
+  ],
+  legs: [
+    { group: 'Squat / press', sets: 3, reps: [8, 10], ids: ['back_squat', 'leg_press', 'hack_squat'] },
+    { group: 'Hamstrings', sets: 3, reps: [10, 12], ids: ['lying_leg_curl', 'seated_leg_curl'] },
+    { group: 'Hips',      sets: 3, reps: [12, 15], ids: ['adductor', 'abductor', 'cable_abduction'] },
+    { group: 'Calves',    sets: 4, reps: [12, 15], ids: ['standing_calf', 'seated_calf', 'press_calf'] },
+    { group: 'Core',      sets: 3, reps: [12, 15], ids: ['hanging_knee', 'hanging_leg', 'captains_chair'] },
+  ],
+};
+
+/* Which day a movement belongs to (first match wins). */
+function dayOfExercise(exId) {
+  const id = resolveExerciseId(exId);
+  return DAY_KEYS.find((d) => DAY_POOL[d].some((g) => g.ids.includes(id))) || null;
+}
+
+function poolGroupOf(dayKey, exId) {
+  const id = resolveExerciseId(exId);
+  return (DAY_POOL[dayKey] || []).find((g) => g.ids.includes(id)) || null;
+}
+
+/* The slot that programs this movement, if any. */
+function homeSlotOf(dayKey, exId) {
+  const id = resolveExerciseId(exId);
+  return PROGRAM[dayKey].slots.find((s) => s.options.includes(id)) || null;
+}
+
+/* Prescription to use when a movement is chosen by hand. Programmed movements
+   keep their own slot's numbers; everything else falls back to its group. */
+function prescriptionFor(dayKey, exId, week, cycleLength) {
+  const home = homeSlotOf(dayKey, exId);
+  if (home) {
+    const rx = prescribe(home, week, cycleLength);
+    return { sets: rx.sets, repMin: rx.repMin, repMax: rx.repMax, repTarget: rx.repTarget, load: rx.load };
+  }
+  const phase = phaseFor(week, cycleLength);
+  const g = poolGroupOf(dayKey, exId);
+  const [rMin, rMax] = g ? g.reps : [8, 12];
+  return {
+    sets: g ? g.sets : 3,
+    repMin: rMin,
+    repMax: rMax,
+    repTarget: Math.round(rMin + phase.repPos * (rMax - rMin)),
+    load: phase.load,
+  };
+}
+
+/* ---------------------------------------------------------------------------
    Exercise IDs are a storage contract
    ---------------------------------------------------------------------------
    Every logged set references its movement by the key above. Change a key and
