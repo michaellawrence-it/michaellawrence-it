@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.3';
+  const BUILD = '2026-07-26.4';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -964,13 +964,24 @@
     if (!progressEx || !ids.includes(progressEx)) progressEx = ids[0];
 
     // Group the picker by day so it reads like the program.
-    const byDay = DAY_KEYS.map((dk) => {
+    const placed = new Set();
+    let byDay = DAY_KEYS.map((dk) => {
       const inDay = ids.filter((id) => PROGRAM[dk].slots.some((sl) => sl.options.includes(id)));
+      inDay.forEach((id) => placed.add(id));
       if (!inDay.length) return '';
       return `<optgroup label="${esc(PROGRAM[dk].name)}">${inDay
         .map((id) => `<option value="${id}"${id === progressEx ? ' selected' : ''}>${esc(exOf(id).name)}</option>`)
         .join('')}</optgroup>`;
     }).join('');
+
+    /* A movement dropped from the program still has history worth reading —
+       keep it reachable instead of silently vanishing from the picker. */
+    const retired = ids.filter((id) => !placed.has(id));
+    if (retired.length) {
+      byDay += `<optgroup label="No longer in the program">${retired
+        .map((id) => `<option value="${id}"${id === progressEx ? ' selected' : ''}>${esc(exOf(id).name)}</option>`)
+        .join('')}</optgroup>`;
+    }
 
     const hist = historyFor(progressEx);
     const metric = METRICS.find((m) => m.key === progressMetric);

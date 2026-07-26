@@ -77,12 +77,18 @@ const PROGRAM = {
     name: 'Push',
     accent: 'push',
     slots: [
-      { id: 'p1', role: 'Flat Bench Press',          sets: [4, 4], reps: [5, 8],   options: ['bb_bench'], anchor: true },
-      { id: 'p2', role: 'Incline Press / Dips',      sets: [3, 3], reps: [8, 10],  options: ['incline_bb', 'dips', 'incline_db'] },
-      { id: 'p3', role: 'Overhead Press',            sets: [3, 3], reps: [6, 8],   options: ['ohp_bb'], anchor: true },
-      { id: 'p4', role: 'Chest Fly',                 sets: [3, 3], reps: [10, 12], options: ['cable_fly', 'pec_deck', 'db_fly'] },
-      { id: 'p5', role: 'Lateral Raises',            sets: [3, 3], reps: [12, 15], options: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
-      { id: 'p6', role: 'Tricep Pushdown',           sets: [3, 3], reps: [10, 12], options: ['rope_pushdown', 'bar_pushdown', 'vbar_pushdown'] },
+      // Incline leads as the heavy press; flat bench drops to a secondary
+      // volume slot behind it. Dips are now a fixed weekly movement rather
+      // than an alternate for incline.
+      { id: 'p1', role: 'Incline Press',             sets: [4, 4], reps: [5, 8],   options: ['incline_bb'], anchor: true },
+      { id: 'p2', role: 'Flat Bench Press',          sets: [3, 3], reps: [8, 10],  options: ['bb_bench'], anchor: true },
+      { id: 'p3', role: 'Dips',                      sets: [3, 3], reps: [8, 10],  options: ['dips'], anchor: true },
+      { id: 'p4', role: 'Overhead Press',            sets: [3, 3], reps: [6, 8],   options: ['ohp_bb'], anchor: true },
+      { id: 'p5', role: 'Chest Fly',                 sets: [3, 3], reps: [10, 12], options: ['cable_fly', 'pec_deck', 'db_fly'] },
+      { id: 'p6', role: 'Lateral Raises',            sets: [3, 3], reps: [12, 15], options: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
+      // One tricep movement, not two: dips already supply heavy elbow
+      // extension, so the long-head-under-stretch work is what's left to add.
+      // (Pushdown ids stay in the catalog above so old logs still resolve.)
       { id: 'p7', role: 'Overhead Tricep Extension', sets: [3, 3], reps: [10, 12], options: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher'] },
     ],
   },

@@ -16,17 +16,25 @@ The three sessions are the ones you already run:
 
 | Push | Pull | Legs |
 |---|---|---|
-| Flat Bench Press — 4×5–8 | Deadlift — 3–4×4–6 | Squats — 4×5–8 |
-| Incline Press / Dips — 3×8–10 | Pull-ups — 3–4 sets | Leg Press — 3×8–10 |
-| Overhead Press — 3×6–8 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
-| Chest Fly — 3×10–12 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
-| Lateral Raises — 3×12–15 | Face Pulls — 3×12–15 | Hip Abductor — 3×12–15 |
-| Tricep Pushdown — 3×10–12 | Barbell Curls — 3×8–10 | Calf Raises — 4×12–15 |
+| Incline Press — 4×5–8 | Deadlift — 3–4×4–6 | Squats — 4×5–8 |
+| Flat Bench Press — 3×8–10 | Pull-ups — 3–4 sets | Leg Press — 3×8–10 |
+| Dips — 3×8–10 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
+| Overhead Press — 3×6–8 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
+| Chest Fly — 3×10–12 | Face Pulls — 3×12–15 | Hip Abductor — 3×12–15 |
+| Lateral Raises — 3×12–15 | Barbell Curls — 3×8–10 | Calf Raises — 4×12–15 |
 | Overhead Tricep Ext. — 3×10–12 | Hammer Curls — 3×10–12 | Hanging Knee Raises — 3×12–15 |
 
-One deliberate change: the pulldown/row slot is stored as a **range** (3×8–12)
-rather than a flat 3×10. Double progression needs a range to climb, so a fixed
-rep target has nowhere to go.
+Push notes: incline leads as the heavy press with flat bench behind it as a
+volume slot, dips are a fixed weekly movement rather than an alternate, and
+there is one tricep isolation rather than two — dips already supply heavy elbow
+extension, so the overhead extension (long head, under stretch) is what's worth
+adding on top. Tricep pushdowns are retired from the program but stay in the
+exercise catalog, so any logged pushdown history is still readable under
+Progress → *No longer in the program*.
+
+One deliberate change to the original prescription: the pulldown/row slot is
+stored as a **range** (3×8–12) rather than a flat 3×10. Double progression needs
+a range to climb, so a fixed rep target has nowhere to go.
 
 ## How the weekly variation works
 
