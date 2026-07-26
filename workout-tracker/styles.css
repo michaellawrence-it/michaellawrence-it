@@ -88,6 +88,19 @@ h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
 
 button { font: inherit; color: inherit; }
 
+.banner {
+  position: relative;
+  z-index: 40;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--line);
+}
+.banner[hidden] { display: none; }
+.banner.bad { background: color-mix(in srgb, var(--bad) 20%, var(--surface-1)); }
+.banner.ok  { background: color-mix(in srgb, var(--series-1) 18%, var(--surface-1)); }
+.banner b { font-weight: 700; }
+
 /* ---------- shell ---------- */
 
 .topbar {

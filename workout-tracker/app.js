@@ -4,7 +4,25 @@
 (function () {
   'use strict';
 
+  /* Shown in Settings so you can confirm your phone picked up an edit. */
+  const BUILD = '2026-07-26.2';
+
+  /* ---------------------------------------------------------------------
+     Storage contract — read this before changing anything below.
+
+     KEY is permanent. Change it and every logged workout on the device
+     becomes unreachable.
+
+     SCHEMA is the shape of what's stored. Any change to that shape means:
+     bump SCHEMA by one AND add the matching entry to MIGRATIONS. The old
+     copy is snapshotted first, so a bad migration is recoverable.
+  --------------------------------------------------------------------- */
   const KEY = 'ppl-tracker-v1';
+  const SCHEMA = 2;
+  const SNAPSHOT_PREFIX = 'ppl-tracker-snapshot-v';
+  const QUARANTINE_PREFIX = 'ppl-tracker-unreadable-';
+  const AUTOBACKUP_KEY = 'ppl-tracker-autobackup';
+
   const LB_PER_KG = 2.2046226218;
 
   /* =======================================================================
@@ -17,7 +35,7 @@
   }
 
   const DEFAULTS = {
-    version: 1,
+    version: SCHEMA,
     unit: 'lb',
     bodyweight: 180,
     restSeconds: 120,
@@ -29,25 +47,110 @@
     active: null,
   };
 
+  /* Coerce a stored session into the current shape. Type-only — it never
+     invents or discards a logged set. */
+  function normalizeSession(s) {
+    if (!s || !Array.isArray(s.entries)) return s;
+    s.entries.forEach((e) => {
+      e.exerciseId = resolveExerciseId(e.exerciseId);
+      if (!Array.isArray(e.options) || !e.options.length) e.options = [e.exerciseId];
+      e.sets = (Array.isArray(e.sets) ? e.sets : []).map((x) => ({
+        w: x.w === null || x.w === undefined || x.w === '' ? null : Number(x.w),
+        r: x.r === null || x.r === undefined || x.r === '' ? null : Math.round(Number(x.r)),
+        done: !!x.done,
+      }));
+      e.targetSets = Number(e.targetSets) || e.sets.length;
+      e.repMin = Number(e.repMin) || 1;
+      e.repMax = Number(e.repMax) || e.repMin;
+      e.repTarget = Number(e.repTarget) || e.repMax;
+      e.load = Number(e.load) || 1;
+      e.note = typeof e.note === 'string' ? e.note : '';
+    });
+    return s;
+  }
+
+  /* Keyed by the version they produce. MIGRATIONS[n] turns v(n-1) into v(n). */
+  const MIGRATIONS = {
+    2(d) {
+      d.sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter((s) => s && Array.isArray(s.entries));
+      d.sessions.forEach(normalizeSession);
+      if (d.active) normalizeSession(d.active);
+      return d;
+    },
+  };
+
+  /* Set when the stored data is NEWER than this code — i.e. a stale copy of
+     the app loaded from cache. Writing would silently downgrade real data, so
+     we refuse to write at all until the app is updated. */
+  let readOnlyReason = null;
+  let recoveryNotice = null;
+
   let state = load();
 
   function load() {
+    let raw = null;
     try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return { ...DEFAULTS };
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULTS, ...parsed };
+      raw = localStorage.getItem(KEY);
     } catch (err) {
-      console.warn('Could not read saved data:', err);
+      readOnlyReason = 'This browser is blocking local storage, so nothing can be saved. Private/incognito mode usually causes this.';
       return { ...DEFAULTS };
     }
+    if (!raw) return { ...DEFAULTS };
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') throw new Error('not an object');
+    } catch (err) {
+      // Never overwrite data we failed to understand — set it aside intact so
+      // it can still be exported and repaired by hand.
+      const stash = QUARANTINE_PREFIX + Date.now();
+      try { localStorage.setItem(stash, raw); } catch (e) { /* nothing more we can do */ }
+      recoveryNotice = { kind: 'unreadable', stash };
+      console.error('Saved data could not be parsed; quarantined at ' + stash, err);
+      return { ...DEFAULTS };
+    }
+
+    const stored = Number(parsed.version) || 1;
+
+    if (stored > SCHEMA) {
+      readOnlyReason = `This device has newer workout data (v${stored}) than the app currently loaded (v${SCHEMA}). ` +
+        'Nothing will be saved until the app updates, so your history stays intact.';
+      return { ...DEFAULTS, ...parsed };
+    }
+
+    if (stored < SCHEMA) {
+      // One snapshot per source version, and never overwrite an existing one.
+      const snapKey = SNAPSHOT_PREFIX + stored;
+      try { if (!localStorage.getItem(snapKey)) localStorage.setItem(snapKey, raw); } catch (e) { /* best effort */ }
+
+      let data = parsed;
+      try {
+        for (let v = stored + 1; v <= SCHEMA; v++) {
+          if (!MIGRATIONS[v]) throw new Error('missing migration to v' + v);
+          data = MIGRATIONS[v](data);
+          data.version = v;
+        }
+      } catch (err) {
+        console.error('Migration failed:', err);
+        readOnlyReason = `Your data is v${stored} and could not be upgraded to v${SCHEMA}. ` +
+          'Nothing will be saved. Export a backup from Settings before doing anything else.';
+        return { ...DEFAULTS, ...parsed };
+      }
+      recoveryNotice = { kind: 'migrated', from: stored, to: SCHEMA };
+      return { ...DEFAULTS, ...data, version: SCHEMA };
+    }
+
+    return { ...DEFAULTS, ...parsed, version: SCHEMA };
   }
 
   let saveTimer = null;
   function writeNow() {
     clearTimeout(saveTimer);
     saveTimer = null;
+    if (readOnlyReason) return; // refuse to clobber data we can't safely handle
     try {
+      state.version = SCHEMA;
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (err) {
       toast('Could not save — storage may be full');
@@ -60,6 +163,15 @@
   }
   /* A backgrounded phone can be killed without warning — flush before that. */
   function flushSave() { if (saveTimer) writeNow(); }
+
+  /* A second copy, rewritten only when a session is banked. If a later edit
+     corrupts the live record, this is the fallback that isn't mid-workout. */
+  function writeAutoBackup() {
+    if (readOnlyReason) return;
+    try {
+      localStorage.setItem(AUTOBACKUP_KEY, JSON.stringify({ savedAt: Date.now(), state }));
+    } catch (err) { /* backup is best effort; never block finishing a workout */ }
+  }
 
   /* =======================================================================
      Small helpers
@@ -98,8 +210,7 @@
   }
 
   function incFor(exId) {
-    const ex = EXERCISES[exId];
-    const lb = ex ? ex.inc : 5;
+    const lb = exOf(exId).inc || 5;
     if (state.unit === 'kg') return lb === 10 ? 5 : 2.5;
     return lb;
   }
@@ -159,8 +270,8 @@
 
   /* Bodyweight movements log *added* load; the bar for them is you. */
   function effectiveWeight(exId, w) {
-    const ex = EXERCISES[exId];
-    if (ex && ex.bw) return (Number(state.bodyweight) || 0) + (w || 0);
+    const ex = exOf(exId);
+    if (ex.bw) return (Number(state.bodyweight) || 0) + (w || 0);
     return w || 0;
   }
 
@@ -654,7 +765,7 @@
   }
 
   function exerciseCard(entry, i) {
-    const ex = EXERCISES[entry.exerciseId] || { name: entry.exerciseId, bw: false };
+    const ex = exOf(entry.exerciseId);
     const rx = {
       exerciseId: entry.exerciseId,
       repMax: entry.repMax,
@@ -668,7 +779,7 @@
 
     const swap = entry.options && entry.options.length > 1
       ? `<select class="swap" data-field="swap" data-slot="${entry.slotId}" aria-label="Swap variation" style="width:auto;min-height:34px;padding:5px 26px 5px 9px;font-size:12.5px">
-          ${entry.options.map((o) => `<option value="${o}"${o === entry.exerciseId ? ' selected' : ''}>${esc(EXERCISES[o].name)}</option>`).join('')}
+          ${entry.options.map((o) => `<option value="${o}"${o === entry.exerciseId ? ' selected' : ''}>${esc(exOf(o).name)}</option>`).join('')}
         </select>`
       : '';
 
@@ -813,7 +924,7 @@
       const pVol = pe ? entryVolume(pe) : 0;
       const d = pVol ? Math.round(((vol - pVol) / pVol) * 100) : null;
       html += `<tr>
-        <td>${esc((EXERCISES[e.exerciseId] || {}).name || e.exerciseId)}${e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</td>
+        <td>${esc(exOf(e.exerciseId).name)}${e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</td>
         <td>${done.map((x) => `${fmtW(x.w)}×${x.r}`).join('<br>')}</td>
         <td>${top ? `${fmtW(top.w)} × ${top.r}` : '—'}</td>
         <td>${fmtInt(vol)}</td>
@@ -857,7 +968,7 @@
       const inDay = ids.filter((id) => PROGRAM[dk].slots.some((sl) => sl.options.includes(id)));
       if (!inDay.length) return '';
       return `<optgroup label="${esc(PROGRAM[dk].name)}">${inDay
-        .map((id) => `<option value="${id}"${id === progressEx ? ' selected' : ''}>${esc(EXERCISES[id].name)}</option>`)
+        .map((id) => `<option value="${id}"${id === progressEx ? ' selected' : ''}>${esc(exOf(id).name)}</option>`)
         .join('')}</optgroup>`;
     }).join('');
 
@@ -891,7 +1002,7 @@
         <div class="seg">${METRICS.map((m) => `<button data-action="metric" data-arg="${m.key}" aria-pressed="${m.key === progressMetric}">${esc(m.name)}</button>`).join('')}</div>
       </div>
       ${points.length > 1
-        ? lineChart(points, { title: `${metric.name} over time for ${EXERCISES[progressEx].name}`, suffix: unitLabel() })
+        ? lineChart(points, { title: `${metric.name} over time for ${exOf(progressEx).name}`, suffix: unitLabel() })
         : `<div class="empty small">One session logged — the trend line needs at least two.</div>`}
     </div>`;
 
@@ -966,16 +1077,39 @@
         <div class="stack">
           <button class="btn block" data-action="export-json">Export backup (.json)</button>
           <button class="btn block" data-action="export-csv">Export for spreadsheets (.csv)</button>
-          <button class="btn block ghost" data-action="import">Restore from backup</button>
+          <button class="btn block ghost" data-action="import">Restore from a file</button>
+          <button class="btn block ghost" data-action="restore-autobackup">Restore last auto-backup</button>
           <button class="btn block danger" data-action="wipe">Erase all data</button>
         </div>
+        <div class="small muted" style="margin-top:11px">${autoBackupLine()}</div>
         <input type="file" accept="application/json,.json" id="import-file" hidden>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:14px;margin-bottom:10px">App version</h2>
+        <table class="data"><tbody>
+          <tr><td>Build</td><td class="tabular">${esc(BUILD)}</td></tr>
+          <tr><td>Data format</td><td class="tabular">v${SCHEMA}</td></tr>
+          <tr><td>Sessions stored</td><td class="tabular">${state.sessions.length}</td></tr>
+        </tbody></table>
+        <button class="btn block ghost" style="margin-top:11px" data-action="hard-refresh">Force update from server</button>
+        <div class="small muted" style="margin-top:8px">
+          Clears the offline cache and reloads the code. Your logged workouts are not touched.
+        </div>
       </div>
 
       <div class="card small muted">
         Estimated 1RM uses the Epley formula (weight × (1 + reps ÷ 30)); it drifts above ~12 reps,
         so treat the high-rep accessory numbers as a trend, not a max.
       </div>`;
+  }
+
+  function autoBackupLine() {
+    let b;
+    try { b = JSON.parse(localStorage.getItem(AUTOBACKUP_KEY)); } catch (err) { b = null; }
+    if (!b || !b.savedAt) return 'No auto-backup yet — one is written every time you finish a session.';
+    const n = b.state && Array.isArray(b.state.sessions) ? b.state.sessions.length : 0;
+    return `Auto-backup: ${n} sessions, saved ${new Date(b.savedAt).toLocaleString()}.`;
   }
 
   /* =======================================================================
@@ -1070,7 +1204,8 @@
       state.active = null;
       stopRest();
       releaseWakeLock();
-      save();
+      writeNow();          // bank it immediately, not on the debounce
+      writeAutoBackup();
       toast('Session saved');
       location.hash = '#/home';
     },
@@ -1082,6 +1217,40 @@
       releaseWakeLock();
       save();
       location.hash = '#/home';
+    },
+
+    'hard-refresh'() { hardRefresh(); },
+
+    'dismiss-banner'() {
+      recoveryNotice = null;
+      updateWaiting = false;
+      renderBanner();
+    },
+
+    'export-quarantine'() {
+      if (!recoveryNotice || !recoveryNotice.stash) return;
+      const raw = localStorage.getItem(recoveryNotice.stash);
+      if (!raw) { toast('Nothing to export'); return; }
+      download(`ppl-unreadable-${todayISO()}.json`, raw, 'application/json');
+    },
+
+    'restore-autobackup'() {
+      let backup;
+      try { backup = JSON.parse(localStorage.getItem(AUTOBACKUP_KEY)); } catch (err) { backup = null; }
+      if (!backup || !backup.state || !Array.isArray(backup.state.sessions)) {
+        toast('No auto-backup on this device');
+        return;
+      }
+      const when = new Date(backup.savedAt).toLocaleString();
+      const n = backup.state.sessions.length;
+      if (!confirm(`Replace current data with the auto-backup from ${when} (${n} sessions)?`)) return;
+      state = { ...DEFAULTS, ...backup.state, version: SCHEMA };
+      recoveryNotice = null;
+      writeNow();
+      applyTheme();
+      renderBanner();
+      render();
+      toast(`Restored ${n} sessions`);
     },
 
     'open-session'(id) { location.hash = '#/session/' + id; },
@@ -1120,7 +1289,7 @@
             if (!set.r) return;
             rows.push([
               s.date, PROGRAM[s.day].name, s.week + 1, s.phase,
-              (EXERCISES[e.exerciseId] || {}).name || e.exerciseId,
+              exOf(e.exerciseId).name,
               i + 1, set.w === null ? '' : set.w, state.unit, set.r,
               Math.round(e1rm(e.exerciseId, set.w, set.r)), e.note || '',
             ]);
@@ -1226,6 +1395,70 @@
      Theme + routing
   ======================================================================= */
 
+  /* =======================================================================
+     Banners — the loud states: read-only, recovered, update waiting
+  ======================================================================= */
+
+  let updateWaiting = false;
+
+  function renderBanner() {
+    const el = $('#banner');
+    let html = '';
+    let kind = '';
+
+    if (readOnlyReason) {
+      kind = 'bad';
+      html = `<div><b>Not saving.</b> ${esc(readOnlyReason)}</div>
+        <div class="row" style="gap:7px;margin-top:8px">
+          <button class="btn sm" data-action="hard-refresh">Update app</button>
+          <button class="btn sm ghost" data-action="export-json">Export backup</button>
+        </div>`;
+    } else if (recoveryNotice && recoveryNotice.kind === 'unreadable') {
+      kind = 'bad';
+      html = `<div><b>Saved data could not be read.</b> The unreadable copy has been set aside untouched —
+        download it before logging anything new.</div>
+        <div class="row" style="gap:7px;margin-top:8px">
+          <button class="btn sm" data-action="export-quarantine">Download it</button>
+          <button class="btn sm ghost" data-action="restore-autobackup">Restore last backup</button>
+          <button class="btn sm ghost" data-action="dismiss-banner">Dismiss</button>
+        </div>`;
+    } else if (recoveryNotice && recoveryNotice.kind === 'migrated') {
+      kind = 'ok';
+      html = `<div>Your data was upgraded from v${recoveryNotice.from} to v${recoveryNotice.to}.
+        The pre-upgrade copy is kept on this device.</div>
+        <div class="row" style="gap:7px;margin-top:8px">
+          <button class="btn sm ghost" data-action="dismiss-banner">OK</button>
+        </div>`;
+    } else if (updateWaiting) {
+      kind = 'ok';
+      html = `<div>A new version of the app is ready.${state.active ? ' Finish your session first — your data is untouched either way.' : ''}</div>
+        <div class="row" style="gap:7px;margin-top:8px">
+          <button class="btn sm" data-action="hard-refresh">Reload</button>
+          <button class="btn sm ghost" data-action="dismiss-banner">Later</button>
+        </div>`;
+    }
+
+    el.hidden = !html;
+    el.className = 'banner ' + kind;
+    el.innerHTML = html;
+  }
+
+  /* Clears code caches only. Never touches localStorage. */
+  async function hardRefresh() {
+    flushSave();
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (err) { /* fall through to the reload regardless */ }
+    location.reload();
+  }
+
   function applyTheme() {
     const root = document.documentElement;
     if (state.theme === 'system') root.removeAttribute('data-theme');
@@ -1315,10 +1548,32 @@
     }
   });
 
+  // Persist the upgraded shape straight away, so the next load reads v2
+  // directly and the pre-upgrade snapshot stays the one true "before" copy.
+  if (recoveryNotice && recoveryNotice.kind === 'migrated') writeNow();
+
   applyTheme();
+  renderBanner();
   render();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        // Surface a pushed edit instead of swapping code under a live session.
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              updateWaiting = true;
+              renderBanner();
+            }
+          });
+        });
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      }).catch(() => {});
+    });
   }
 })();

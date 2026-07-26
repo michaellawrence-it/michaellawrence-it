@@ -117,6 +117,33 @@ const PROGRAM = {
 const DAY_KEYS = ['push', 'pull', 'legs'];
 
 /* ---------------------------------------------------------------------------
+   Exercise IDs are a storage contract
+   ---------------------------------------------------------------------------
+   Every logged set references its movement by the key above. Change a key and
+   the matching history detaches — no progression suggestion, no trend line.
+
+   So: keys are append-only. Never rename, never delete, never reuse. If a
+   movement genuinely has to be renamed, add the old key here pointing at the
+   new one and the old sessions follow it across.
+--------------------------------------------------------------------------- */
+const EXERCISE_ALIASES = {
+  // 'old_key': 'new_key',
+};
+
+function resolveExerciseId(id) {
+  const seen = new Set();
+  let cur = id;
+  while (EXERCISE_ALIASES[cur] && !seen.has(cur)) { seen.add(cur); cur = EXERCISE_ALIASES[cur]; }
+  return cur;
+}
+
+/* Never throws. An unknown id (older backup, retired movement) still renders
+   with its raw key rather than taking the whole view down. */
+function exOf(id) {
+  return EXERCISES[resolveExerciseId(id)] || { name: String(id), kind: 'machine', inc: 5, unknown: true };
+}
+
+/* ---------------------------------------------------------------------------
    The weekly wave
 
    repPos  0 = bottom of the prescribed rep range (heaviest)

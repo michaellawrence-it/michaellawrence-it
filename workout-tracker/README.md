@@ -84,30 +84,57 @@ bodyweight from Settings is folded into the volume and 1RM math.
 Estimated 1RM uses Epley (`weight × (1 + reps ÷ 30)`). It drifts above ~12 reps,
 so read the high-rep accessory numbers as a trend line, not a max.
 
-## Running it
+## Getting it on your phone
 
-**On your phone (recommended).** Serve the folder over HTTPS and open it, then
-*Share → Add to Home Screen* (iOS) or *Install app* (Android). It runs
-full-screen and offline from then on. Enabling GitHub Pages on this repo puts it
-at `https://<user>.github.io/workout-tracker/`.
+One-time setup, in the repo's **Settings → Pages**:
 
-**Locally.** Any static server works:
+1. Source: **Deploy from a branch**
+2. Branch: the branch this folder is on, folder `/ (root)`
+3. Save, wait a minute, then open `https://<user>.github.io/workout-tracker/`
+
+Then **Share → Add to Home Screen** (iOS) or **Install app** (Android). It runs
+full-screen with its own icon, and works with the gym Wi-Fi off.
+
+Locally, any static server does:
 
 ```bash
 cd workout-tracker
 python3 -m http.server 8777      # then open http://localhost:8777
 ```
 
-Opening `index.html` directly off the filesystem also works — you just lose the
-service worker (which only matters for offline installs).
+Opening `index.html` off the filesystem works too — you just lose the service
+worker, which only matters for offline installs.
+
+## Updating the app without touching your data
+
+Push to the branch Pages serves and it's live. Your phone picks it up on the
+next load — the service worker is network-first, so it reaches for the new files
+first and only falls back to the cache when offline. If a version ever seems
+stuck, **Settings → Force update from server** clears the code cache and
+reloads. *That button does not touch your logged workouts.*
+
+**Settings → App version** shows the running build and data-format version, so
+you can confirm an edit actually landed.
+
+The stored data has its own version number, independent of the app. Four things
+protect it across edits:
+
+| Situation | What happens |
+|---|---|
+| A new version changes the data shape | A migration converts your data forward, and the pre-upgrade copy is snapshotted first |
+| Your phone has a stale copy of the app and newer data | The app **refuses to write anything** and shows a red banner until it updates — a stale build can't downgrade good data |
+| Saved data is somehow unreadable | It's copied aside intact before anything else, and offered as a download |
+| A finished session | Written to a separate auto-backup, restorable from Settings |
+
+Movement IDs are treated as permanent, so history never detaches from a lift
+when the app changes. The rules are written down in `CLAUDE.md` at the repo root.
 
 ## Your data
 
-Everything lives in `localStorage` on the one device. Clearing site data wipes
-it, so use **Settings → Export backup (.json)** now and then; **Restore from
-backup** reads it back. There's also a **.csv** export (one row per set, with
-date, week, phase, movement, weight, reps, and estimated 1RM) for when you want
-to slice it in a spreadsheet.
+It lives in `localStorage` on the one device. Clearing site data wipes it, so
+use **Settings → Export backup (.json)** now and then; **Restore from a file**
+reads it back. There's also a **.csv** export (one row per set, with date, week,
+phase, movement, weight, reps, and estimated 1RM) for slicing in a spreadsheet.
 
 Switching lb ↔ kg converts every stored weight in place, rounded to the nearest
 half unit.
@@ -121,8 +148,8 @@ half unit.
 | `app.js` | State, progression math, views, rest timer, chart |
 | `styles.css` | Design tokens, dark/light themes, layout |
 | `sw.js` | Offline cache (network-first, cache fallback) |
-| `manifest.webmanifest`, `icon.svg` | Home-screen install |
+| `manifest.webmanifest`, `icon.svg`, `icon-*.png`, `apple-touch-icon.png` | Home-screen install |
 
 To change the program — add a movement, retune a rep range, add a rotation
-option — edit `PROGRAM` and `EXERCISES` in `program.js`. Nothing else needs to
-know.
+option — edit `PROGRAM` and `EXERCISES` in `program.js`. That's data, not stored
+shape, so nothing else needs to know and no migration is involved.
