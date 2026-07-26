@@ -12,7 +12,7 @@ const EXERCISES = {
   bb_bench:        { name: 'Flat Barbell Bench Press', kind: 'barbell',    inc: 5 },
   incline_bb:      { name: 'Incline Barbell Press',    kind: 'barbell',    inc: 5 },
   incline_db:      { name: 'Incline Dumbbell Press',   kind: 'dumbbell',   inc: 5 },
-  dips:            { name: 'Weighted Dips',            kind: 'bodyweight', inc: 5, bw: true },
+  dips:            { name: 'Dips',                     kind: 'bodyweight', inc: 5, bw: true },
   ohp_bb:          { name: 'Overhead Press',           kind: 'barbell',    inc: 5 },
   cable_fly:       { name: 'Cable Chest Fly',          kind: 'cable',      inc: 5 },
   db_fly:          { name: 'Dumbbell Chest Fly',       kind: 'dumbbell',   inc: 5 },

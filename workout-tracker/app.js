@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.7';
+  const BUILD = '2026-07-26.8';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -18,7 +18,7 @@
      copy is snapshotted first, so a bad migration is recoverable.
   --------------------------------------------------------------------- */
   const KEY = 'ppl-tracker-v1';
-  const SCHEMA = 2;
+  const SCHEMA = 3;
   const SNAPSHOT_PREFIX = 'ppl-tracker-snapshot-v';
   const QUARANTINE_PREFIX = 'ppl-tracker-unreadable-';
   const AUTOBACKUP_KEY = 'ppl-tracker-autobackup';
@@ -50,6 +50,11 @@
       hour: 17,         // local hour to fire
       enabled: false,
       schedule: { mon: 'push', tue: '', wed: 'pull', thu: '', fri: 'legs', sat: '', sun: '' },
+      // Opt-in separately: this is the one feature that tells the server a
+      // date. Mon/Wed/Fri means Fri->Mon is already 3 days, so 3 would nudge
+      // every Monday having missed nothing. 4 only fires on a real gap.
+      nudge: false,
+      nudgeDays: 4,
     },
     sessions: [],
     active: null,
@@ -75,6 +80,8 @@
         w: x.w === null || x.w === undefined || x.w === '' ? null : Number(x.w),
         r: x.r === null || x.r === undefined || x.r === '' ? null : Math.round(Number(x.r)),
         done: !!x.done,
+        // when the set was ticked off; null for anything logged before v3
+        t: typeof x.t === 'number' ? x.t : null,
       }));
       e.targetSets = Number(e.targetSets) || e.sets.length;
       e.repMin = Number(e.repMin) || 1;
@@ -88,6 +95,22 @@
 
   /* Keyed by the version they produce. MIGRATIONS[n] turns v(n-1) into v(n). */
   const MIGRATIONS = {
+    /* v3 adds per-set completion timestamps and a session start time, which is
+       what makes rest timing and duration possible. Nothing existing can be
+       reconstructed, so old records get nulls and simply report "—". */
+    3(d) {
+      const fix = (s) => {
+        if (!s) return;
+        if (typeof s.startedAt !== 'number') s.startedAt = null;
+        (s.entries || []).forEach((e) => {
+          (e.sets || []).forEach((x) => { if (typeof x.t !== 'number') x.t = null; });
+        });
+      };
+      (d.sessions || []).forEach(fix);
+      fix(d.active);
+      return d;
+    },
+
     2(d) {
       d.sessions = (Array.isArray(d.sessions) ? d.sessions : []).filter((s) => s && Array.isArray(s.entries));
       d.sessions.forEach(normalizeSession);
@@ -324,6 +347,67 @@
     }, null);
   }
 
+  /* Rest between sets, measured from when each set was ticked off.
+     Two deliberate choices, both because real sessions are messy:
+       - only gaps *within* one movement count; walking to the next machine
+         isn't rest.
+       - the median, not the mean, and anything over 10 minutes is dropped.
+         Forgetting to tick a set until later would otherwise drag an average
+         into uselessness — one 22-minute gap shouldn't rewrite the number. */
+  const REST_CUTOFF_S = 600;
+
+  function restStats(session) {
+    const gaps = [];
+    session.entries.forEach((e) => {
+      const stamps = e.sets.map((s) => s.t).filter((t) => typeof t === 'number');
+      for (let i = 1; i < stamps.length; i++) {
+        const gap = (stamps[i] - stamps[i - 1]) / 1000;
+        if (gap > 0) gaps.push(gap);
+      }
+    });
+    const kept = gaps.filter((g) => g <= REST_CUTOFF_S);
+    if (!kept.length) return null;
+    const sorted = kept.slice().sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    return { median, count: kept.length, ignored: gaps.length - kept.length };
+  }
+
+  /* Wall-clock length of the session: start to whenever Finish was tapped. */
+  function sessionDuration(session) {
+    if (typeof session.startedAt !== 'number' || typeof session.ts !== 'number') return null;
+    const secs = (session.ts - session.startedAt) / 1000;
+    return secs > 0 && secs < 12 * 3600 ? secs : null;
+  }
+
+  function fmtDur(secs) {
+    if (secs === null || secs === undefined) return '—';
+    const m = Math.round(secs / 60);
+    return m >= 60 ? `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `${m}m`;
+  }
+
+  function fmtClock(secs) {
+    const s = Math.round(secs);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  /* Did this entry beat everything logged for that movement before it? */
+  function wasPR(session, entry) {
+    const top = topSet(entry);
+    if (!top) return false;
+    const cur = e1rm(entry.exerciseId, top.w, top.r);
+    if (!cur) return false;
+    let before = 0;
+    state.sessions.forEach((s) => {
+      if (s.ts >= session.ts) return;
+      s.entries.forEach((e) => {
+        if (e.exerciseId !== entry.exerciseId) return;
+        workingSets(e).forEach((x) => { before = Math.max(before, e1rm(e.exerciseId, x.w, x.r)); });
+      });
+    });
+    return cur > before + 0.01;
+  }
+
   /* Sessions, newest first. */
   function sortedSessions() {
     return state.sessions.slice().sort((a, b) => (a.ts === b.ts ? 0 : a.ts < b.ts ? 1 : -1));
@@ -411,6 +495,7 @@
       id: uid(),
       date: todayISO(),
       ts: Date.now(),
+      startedAt: Date.now(),
       day: dayKey,
       week,
       phase: phase.key,
@@ -424,7 +509,7 @@
         repMax: r.repMax,
         repTarget: r.repTarget,
         load: r.load,
-        sets: Array.from({ length: r.sets }, () => ({ w: null, r: null, done: false })),
+        sets: Array.from({ length: r.sets }, () => ({ w: null, r: null, done: false, t: null })),
         note: '',
       })),
     };
@@ -537,6 +622,8 @@
           schedule: state.push.schedule,
           hour: state.push.hour,
           tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          nudgeDays: state.push.nudge ? Number(state.push.nudgeDays) || 4 : 0,
+          lastWorkoutAt: state.push.nudge && sortedSessions()[0] ? sortedSessions()[0].date : null,
         }),
       });
       if (res.status === 401) throw new Error('token rejected by the server');
@@ -570,6 +657,23 @@
     }
   }
 
+  /* The only call that mentions training at all, and it sends one date —
+     no movement, no set, no weight. Silent no-op unless nudges are on. */
+  async function pushReportActivity() {
+    if (!state.push.enabled || !state.push.nudge || !pushBase()) return;
+    const sub = await currentPushSubscription();
+    if (!sub) return;
+    const last = sortedSessions()[0];
+    await pushFetch('/activity', {
+      method: 'POST',
+      body: JSON.stringify({
+        endpoint: sub.endpoint,
+        lastWorkoutAt: last ? last.date : null,
+        nudgeDays: state.push.nudge ? Number(state.push.nudgeDays) || 4 : 0,
+      }),
+    }).catch(() => {});
+  }
+
   /* Re-send the schedule without touching the subscription itself. */
   async function pushSyncSchedule() {
     if (!state.push.enabled) return;
@@ -582,6 +686,8 @@
         schedule: state.push.schedule,
         hour: state.push.hour,
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        nudgeDays: state.push.nudge ? Number(state.push.nudgeDays) || 4 : 0,
+        lastWorkoutAt: state.push.nudge && sortedSessions()[0] ? sortedSessions()[0].date : null,
       }),
     }).catch(() => {});
   }
@@ -1113,10 +1219,44 @@
     // The same day, one session earlier — the natural comparison.
     const prior = sortedSessions().filter((x) => x.day === s.day && x.ts < s.ts)[0];
 
+    const rest = restStats(s);
+    const dur = sessionDuration(s);
+    const sets = s.entries.reduce((n, e) => n + workingSets(e).length, 0);
+    const prs = s.entries.filter((e) => workingSets(e).length && wasPR(s, e));
+
     let html = `<div class="card small row" style="gap:9px">${phasePill(ph)}
-      <span class="muted">${fmtInt(sessionVolume(s))} ${esc(unitLabel())} total volume${
-        prior ? ` · ${deltaSpan(Math.round(sessionVolume(s)), Math.round(sessionVolume(prior)), 0, true).trim()} vs ${esc(fmtDate(prior.date))}` : ''
+      <span class="muted">${esc(PROGRAM[s.day].name)} · ${sets} sets${
+        prior ? ` · last done ${esc(relDate(prior.date))}` : ' · first time logged'
       }</span></div>`;
+
+    html += `<div class="stat-row" style="margin-bottom:12px">
+      <div class="stat"><div class="k">Volume</div><div class="v">${fmtInt(sessionVolume(s))}${
+        prior ? deltaSpan(Math.round(sessionVolume(s)), Math.round(sessionVolume(prior)), 0, true) : ''
+      }</div></div>
+      <div class="stat"><div class="k">Duration</div><div class="v">${esc(fmtDur(dur))}</div></div>
+      <div class="stat"><div class="k">Typical rest</div><div class="v">${rest ? esc(fmtClock(rest.median)) : '—'}</div></div>
+    </div>`;
+
+    if (rest) {
+      html += `<div class="small muted" style="margin:-6px 2px 12px">
+        Median of ${rest.count} rest${rest.count === 1 ? '' : 's'} between sets of the same movement${
+          rest.ignored ? `, ignoring ${rest.ignored} gap${rest.ignored === 1 ? '' : 's'} over 10 min` : ''
+        }.</div>`;
+    } else if (!s.entries.some((e) => e.sets.some((x) => typeof x.t === 'number'))) {
+      html += `<div class="small muted" style="margin:-6px 2px 12px">
+        Rest timing needs sets ticked off with the checkmark — this session predates it.</div>`;
+    }
+
+    if (prs.length) {
+      html += `<div class="card" style="border-color:color-mix(in srgb, var(--warn) 45%, transparent)">
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <span class="pill pr">PR</span>
+          <span class="small">${prs.map((e) => {
+            const t = topSet(e);
+            return `${esc(exOf(e.exerciseId).name)} <b>${fmtW(t.w)}×${t.r}</b>`;
+          }).join(' &nbsp;·&nbsp; ')}</span>
+        </div></div>`;
+    }
 
     html += `<div class="card"><div class="scroll-x"><table class="data">
       <thead><tr><th>Movement</th><th>Sets</th><th>Top set</th><th>Volume</th><th>Δ</th></tr></thead><tbody>`;
@@ -1130,7 +1270,8 @@
       const pVol = pe ? entryVolume(pe) : 0;
       const d = pVol ? Math.round(((vol - pVol) / pVol) * 100) : null;
       html += `<tr>
-        <td>${esc(exOf(e.exerciseId).name)}${e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</td>
+        <td>${esc(exOf(e.exerciseId).name)}${wasPR(s, e) ? ' <span class="pill pr">PR</span>' : ''}${
+          e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</td>
         <td>${done.map((x) => `${fmtW(x.w)}×${x.r}`).join('<br>')}</td>
         <td>${top ? `${fmtW(top.w)} × ${top.r}` : '—'}</td>
         <td>${fmtInt(vol)}</td>
@@ -1139,7 +1280,10 @@
     });
 
     html += `</tbody></table></div></div>`;
-    html += `<button class="btn ghost block" data-action="repeat" data-arg="${s.id}">Start this workout again</button>`;
+    html += `<div class="stack">
+      <button class="btn ghost block" data-action="repeat" data-arg="${s.id}">Start this workout again</button>
+      <a class="btn ghost block" href="#/home">Done</a>
+    </div>`;
     $('#view').innerHTML = html;
   }
 
@@ -1322,6 +1466,17 @@
                 `<option value="${v}"${(state.push.schedule[d] || '') === v ? ' selected' : ''}>${n}</option>`).join('')}
             </select>
           </div>`).join('')}
+        <div class="switch-row" style="margin-top:10px">
+          <span>
+            <span>Nudge me if I stop training</span>
+            <span class="small muted" style="display:block;max-width:34ch">Sends the server the <em>date</em> of your last session — nothing about what you did.</span>
+          </span>
+          <button class="btn sm ${state.push.nudge ? 'primary' : ''}" data-action="toggle-nudge">${state.push.nudge ? 'On' : 'Off'}</button>
+        </div>
+        ${state.push.nudge ? `<label class="field" style="margin-top:10px"><span class="label">After this many days without a session</span>
+          <select data-field="push-nudge-days">
+            ${[2, 3, 4, 5, 6, 7, 10, 14].map((d) => `<option value="${d}"${d === state.push.nudgeDays ? ' selected' : ''}>${d} days${d === 4 ? ' (recommended)' : ''}</option>`).join('')}
+          </select></label>` : ''}
         <div class="stack" style="margin-top:12px">
           <button class="btn block ${state.push.enabled ? 'danger' : 'primary'}" data-action="${state.push.enabled ? 'push-disable' : 'push-enable'}">
             ${state.push.enabled ? 'Turn reminders off' : 'Turn reminders on'}
@@ -1403,9 +1558,11 @@
         if (set.r === null && rInput && rInput.placeholder !== '') { set.r = num(rInput.placeholder); rInput.value = set.r; }
         if (set.r === null) { toast('Enter reps first'); return; }
         set.done = true;
+        set.t = Date.now();
         startRest(Number(state.restSeconds) || 120);
       } else {
         set.done = false;
+        set.t = null;
       }
       row.classList.toggle('done', set.done);
       refreshVol(slotId);
@@ -1427,7 +1584,7 @@
     'add-set'(slotId) {
       const entry = findEntry(slotId);
       if (!entry) return;
-      entry.sets.push({ w: null, r: null, done: false });
+      entry.sets.push({ w: null, r: null, done: false, t: null });
       save();
       render();
     },
@@ -1465,8 +1622,9 @@
       releaseWakeLock();
       writeNow();          // bank it immediately, not on the debounce
       writeAutoBackup();
+      pushReportActivity();
       toast('Session saved');
-      location.hash = '#/home';
+      location.hash = '#/session/' + s.id;   // straight into the summary
     },
 
     discard() {
@@ -1490,6 +1648,13 @@
       save();
       render();
       notifyRestDone(); // one immediate example so it's obvious it works
+    },
+
+    'toggle-nudge'() {
+      state.push.nudge = !state.push.nudge;
+      save();
+      render();
+      pushSyncSchedule();
     },
 
     'push-enable'() { pushEnable(); },
@@ -1663,7 +1828,7 @@
 
       // Keep every set already logged; only empty rows are added or dropped.
       const kept = entry.sets.filter((s) => s.r && s.r > 0);
-      while (kept.length < rx.sets) kept.push({ w: null, r: null, done: false });
+      while (kept.length < rx.sets) kept.push({ w: null, r: null, done: false, t: null });
       entry.sets = kept;
 
       save();
@@ -1687,6 +1852,7 @@
     }
     if (f === 'push-url') { state.push.url = el.value.trim(); save(); return; }
     if (f === 'push-token') { state.push.token = el.value.trim(); save(); return; }
+    if (f === 'push-nudge-days') { state.push.nudgeDays = Number(el.value); save(); pushSyncSchedule(); return; }
     if (f === 'push-hour') { state.push.hour = Number(el.value); save(); pushSyncSchedule(); return; }
     if (f === 'push-day') {
       state.push.schedule[el.dataset.day] = el.value;

@@ -60,7 +60,7 @@ keeps changing, so the variation belongs in the accessories.
 **The rotation suggests; it never locks you in.** The movement name on each card
 is a picker offering *every* movement for that day — 17 on Push, 16 on Pull, 14
 on Legs — grouped by pattern, each labelled with when you last did it
-(`Weighted Dips · 3d ago`). If you want to chase a lift this week, pick it,
+(`Dips · 3d ago`). If you want to chase a lift this week, pick it,
 whatever the rotation had planned.
 
 Choosing a movement brings its own prescription with it: a programmed movement
@@ -191,3 +191,46 @@ than merely intended. Deploy instructions are in `push-server/README.md`.
 
 Both require the app to be installed to the Home Screen — iOS only permits Web
 Push for installed PWAs, never for a Safari tab.
+
+## After a session
+
+Finishing drops you straight into a summary of what just happened, compared
+against the last time you trained that day:
+
+- **Volume** with the percentage change on the previous session of that day type
+- **Duration** — start to when you tapped Finish
+- **Typical rest** between sets
+- **PRs** — any movement beating its best estimated 1RM, flagged in the header
+  and against the row
+- Per-movement sets, top set, volume and Δ
+
+The same screen is what you get tapping any past session in History, so the
+comparison is there later too, not only in the moment.
+
+### How rest is measured
+
+From when each set is ticked off with the checkmark, and deliberately
+conservative:
+
+- Only gaps **within one movement** count. Walking to the next machine is setup,
+  not rest.
+- It reports the **median**, not the mean, and drops anything over **10 minutes**.
+  If you forget to tick a set until later the timer keeps running, but that gap
+  is a lapse in logging rather than a real rest — one 22-minute outlier
+  shouldn't rewrite the number. The line underneath says how many gaps were
+  ignored.
+
+Sessions logged before this existed show "—" rather than a fabricated figure.
+
+## Inactivity nudge
+
+Optional, and opt-in separately from the scheduled reminders, because it is the
+one feature that tells the server anything about training: the **date** of your
+last session. No movement, set, weight or rep.
+
+Default threshold is **4 days**, not 3. On a Mon/Wed/Fri split, Friday to Monday
+*is* three days — a 3-day threshold would fire every Monday having missed
+nothing, which is how a notification earns itself being ignored.
+
+It only fires on days with no scheduled reminder, so the two never stack, and it
+waits two days between nudges rather than repeating daily.

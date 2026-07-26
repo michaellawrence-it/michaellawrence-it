@@ -14,7 +14,7 @@ see it or get it back. A careless edit destroys months of logged work.
 1. **Never change `KEY`** (`'ppl-tracker-v1'` in `app.js`). It is the address of
    all saved data. Changing it makes every logged workout unreachable. It is
    permanent even though it says `v1` — the `v1` is historical, the schema
-   version is tracked separately in `SCHEMA`.
+   version is tracked separately in `SCHEMA` (currently 3).
 
 2. **Never rename or delete a key in `EXERCISES`** (`program.js`). Every logged
    set stores its movement by that key. Renaming detaches the history: no
@@ -72,8 +72,9 @@ both themes.
 ### push-server/ — the reminder Worker
 
 `push-server/` is a Cloudflare Worker sending scheduled reminders. It stores a
-push subscription, a weekday map, an hour, and a timezone — **never workout
-data**, and there is a test asserting that. Keep it that way: if a change would
+push subscription, a weekday map, an hour, a timezone, and — only if the
+inactivity nudge is switched on — the **date** of the last session. Never a
+movement, set, weight or rep, and there is a test asserting that. Keep it that way: if a change would
 send anything about sessions, sets, or movements to the Worker, it needs saying
 out loud first, because it breaks the promise the rest of this app is built on.
 

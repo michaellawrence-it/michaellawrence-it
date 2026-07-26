@@ -178,6 +178,7 @@ button { font: inherit; color: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
+  color: inherit;            /* anchors styled as buttons must not go link-blue */
   font-size: 15px;
   font-weight: 550;
   cursor: pointer;

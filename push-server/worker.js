@@ -77,11 +77,17 @@ export default {
       if (!body || !body.subscription || !body.subscription.endpoint) {
         return json({ error: 'missing subscription' }, 400);
       }
+      const prev = JSON.parse((await env.SUBS.get(await keyFor(body.subscription.endpoint))) || '{}');
       const record = {
+        ...prev,
         subscription: body.subscription,
         schedule: body.schedule || {},        // { mon: 'push', wed: 'pull', ... }
         hour: Number(body.hour) || 17,
         tz: body.tz || 'UTC',
+        // 0 disables the inactivity nudge. lastWorkoutAt is a bare date and is
+        // the only thing here that touches training at all.
+        nudgeDays: Number(body.nudgeDays) || 0,
+        lastWorkoutAt: body.lastWorkoutAt || prev.lastWorkoutAt || null,
         updated: Date.now(),
       };
       await env.SUBS.put(await keyFor(body.subscription.endpoint), JSON.stringify(record));
@@ -92,6 +98,21 @@ export default {
       const body = await req.json().catch(() => null);
       if (!body || !body.endpoint) return json({ error: 'missing endpoint' }, 400);
       await env.SUBS.delete(await keyFor(body.endpoint));
+      return json({ ok: true });
+    }
+
+    /* Just the date of the most recent session — no movement, set or weight. */
+    if (url.pathname === '/activity' && req.method === 'POST') {
+      const body = await req.json().catch(() => null);
+      if (!body || !body.endpoint) return json({ error: 'missing endpoint' }, 400);
+      const k = await keyFor(body.endpoint);
+      const raw = await env.SUBS.get(k);
+      if (!raw) return json({ error: 'unknown subscription' }, 404);
+      const rec = JSON.parse(raw);
+      rec.lastWorkoutAt = body.lastWorkoutAt || null;
+      if (body.nudgeDays !== undefined) rec.nudgeDays = Number(body.nudgeDays) || 0;
+      rec.updated = Date.now();
+      await env.SUBS.put(k, JSON.stringify(rec));
       return json({ ok: true });
     }
 
@@ -131,20 +152,38 @@ export default {
           try { local = localParts(rec.tz, now); }
           catch { local = localParts('UTC', now); }
 
-          const dayType = rec.schedule[local.dow];
-          if (!dayType) continue;
           if (local.hour !== rec.hour) continue;
           if (rec.lastSent === local.stamp) continue;   // already fired today
 
-          const label = DAY_LABEL[dayType] || 'Training';
+          const dayType = rec.schedule[local.dow];
+          let message = null;
+
+          if (dayType) {
+            message = { title: `${DAY_LABEL[dayType] || 'Training'} day`, body: 'Time to train.' };
+          } else if (rec.nudgeDays > 0 && rec.lastWorkoutAt) {
+            // Only on days with no scheduled reminder, so the two can't stack.
+            const days = Math.floor((Date.parse(local.stamp) - Date.parse(rec.lastWorkoutAt)) / 86400000);
+            const sinceNudge = rec.lastNudge
+              ? Math.floor((Date.parse(local.stamp) - Date.parse(rec.lastNudge)) / 86400000)
+              : Infinity;
+            // Two days between nudges: a reminder is useful, a daily guilt-trip
+            // gets muted.
+            if (days >= rec.nudgeDays && sinceNudge >= 2) {
+              message = { title: 'Still on the shelf', body: `${days} days since your last session.`, nudge: true };
+            }
+          }
+
+          if (!message) continue;
+
           const res = await sendPush(rec.subscription, {
-            title: `${label} day`,
-            body: 'Time to train.',
+            title: message.title,
+            body: message.body,
             url: './index.html#/home',
           }, env);
 
           if (res.ok) {
             rec.lastSent = local.stamp;
+            if (message.nudge) rec.lastNudge = local.stamp;
             await env.SUBS.put(entry.name, JSON.stringify(rec));
           } else if (res.status === 404 || res.status === 410) {
             // The push service says this subscription is dead — stop retrying.
