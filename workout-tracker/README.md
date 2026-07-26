@@ -51,15 +51,22 @@ position *inside* your prescribed ranges. Nothing is invented — 4×5–8 stays
 | 3 | **Intensity** | Bottom of every rep range, full set count. Heaviest week. |
 | 4 | **Deload** | Fewer sets at ~85% load. Optional — switch to a 3-week cycle in Settings. |
 
-**2. Accessory rotation.** Slots with more than one sensible variation cycle
-through them week to week — incline barbell → dips → incline dumbbell, rope
-pushdown → straight bar → V-bar, pull-up grips, cable fly → pec deck → dumbbell,
-and so on. The rotations are staggered so the whole session never turns over at
-once, and you can override any of them from the dropdown mid-workout.
+**2. Accessory rotation.** Accessory slots cycle through their variations week
+to week — cable fly → pec deck → dumbbell, pull-up grips, and so on. The
+rotations are staggered so the whole session never turns over at once. The
+compound anchors don't rotate: you cannot progressively overload a lift that
+keeps changing, so the variation belongs in the accessories.
 
-**The five compound anchors never rotate**: bench, overhead press, deadlift,
-barbell row, squat. You cannot progressively overload a lift you keep swapping —
-the variation belongs in the accessories.
+**The rotation suggests; it never locks you in.** The movement name on each card
+is a picker offering *every* movement for that day — 17 on Push, 16 on Pull, 14
+on Legs — grouped by pattern, each labelled with when you last did it
+(`Weighted Dips · 3d ago`). If you want to chase a lift this week, pick it,
+whatever the rotation had planned.
+
+Choosing a movement brings its own prescription with it: a programmed movement
+keeps its slot's waved numbers, anything else takes its pattern group's, so
+lateral raises in a 4×5–8 slot become 3×12–15 rather than inheriting a target
+that makes no sense. Sets you've already logged survive the swap.
 
 The week number comes from the calendar (Monday-anchored) against the program
 start date in Settings, so the phase flips over the weekend rather than
@@ -161,3 +168,26 @@ half unit.
 To change the program — add a movement, retune a rep range, add a rotation
 option — edit `PROGRAM` and `EXERCISES` in `program.js`. That's data, not stored
 shape, so nothing else needs to know and no migration is involved.
+
+## Notifications
+
+Two kinds, and they're independent — the first needs nothing, the second needs
+a server.
+
+**Rest timer alerts.** Settings → *Notify when rest ends*. Shows on the lock
+screen alongside the beep and vibration. No backend; nothing leaves the device.
+The catch is iOS: if you fully switch away from the app mid-set, it suspends the
+page and the alert may not fire. The screen wake-lock during a session means
+this mostly doesn't come up in practice.
+
+**Training reminders.** Settings → *Training reminders*. Real scheduled push —
+"Legs day" at 5pm on the days you choose — from your own Cloudflare Worker in
+`../push-server/`. iOS has no local scheduling API, so a future-dated
+notification genuinely requires a server; there is no way around it.
+
+That Worker stores a push subscription, your weekly day map, an hour, and a
+timezone. **No workout data is sent to it**, which is asserted by a test rather
+than merely intended. Deploy instructions are in `push-server/README.md`.
+
+Both require the app to be installed to the Home Screen — iOS only permits Web
+Push for installed PWAs, never for a Safari tab.

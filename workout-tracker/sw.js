@@ -1,6 +1,6 @@
 /* sw.js — offline shell. Bump CACHE when any file below changes. */
 
-const CACHE = 'ppl-tracker-2026-07-26.5';
+const CACHE = 'ppl-tracker-2026-07-26.7';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,44 @@ self.addEventListener('activate', (ev) => {
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+/* A scheduled reminder arriving from the push server. iOS requires that every
+   push shows a notification, so there is no silent path here by design. */
+self.addEventListener('push', (ev) => {
+  const fallback = { title: 'PPL Tracker', body: 'Time to train.', url: './index.html#/home' };
+  let data = fallback;
+  if (ev.data) {
+    try { data = { ...fallback, ...ev.data.json() }; }
+    catch (err) { data = { ...fallback, body: ev.data.text() }; }
+  }
+  ev.waitUntil(self.registration.showNotification(data.title, {
+    body: data.body,
+    tag: 'ppl-reminder',
+    renotify: true,
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    data: { url: data.url },
+  }));
+});
+
+/* Tapping a notification should land you back in the app, reusing the window
+   that's already open rather than stacking up new ones. */
+self.addEventListener('notificationclick', (ev) => {
+  ev.notification.close();
+  const target = (ev.notification.data && ev.notification.data.url) || './index.html';
+  ev.waitUntil((async () => {
+    const url = new URL(target, self.registration.scope).href;
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of clients) {
+      if (c.url.startsWith(self.registration.scope)) {
+        await c.focus();
+        if ('navigate' in c && c.url !== url) await c.navigate(url).catch(() => {});
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
 });
 
 /* Network-first so a deployed update lands on the next online load, with the

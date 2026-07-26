@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.5';
+  const BUILD = '2026-07-26.7';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -43,9 +43,26 @@
     weekOffset: 0,      // nudge the phase without moving the start date
     startDate: todayISO(),
     theme: 'system',
+    notifyRest: false,  // lock-screen notification when a rest period ends
+    push: {             // scheduled reminders via your own push Worker
+      url: '',          // Worker base URL
+      token: '',        // shared secret it checks
+      hour: 17,         // local hour to fire
+      enabled: false,
+      schedule: { mon: 'push', tue: '', wed: 'pull', thu: '', fri: 'legs', sat: '', sun: '' },
+    },
     sessions: [],
     active: null,
   };
+
+  /* Shallow-spreading DEFAULTS would replace `push` wholesale, so a stored
+     copy written before a new sub-field existed would come back missing it. */
+  function withDefaults(parsed) {
+    const s = { ...DEFAULTS, ...(parsed || {}) };
+    s.push = { ...DEFAULTS.push, ...((parsed && parsed.push) || {}) };
+    s.push.schedule = { ...DEFAULTS.push.schedule, ...((parsed && parsed.push && parsed.push.schedule) || {}) };
+    return s;
+  }
 
   /* Coerce a stored session into the current shape. Type-only — it never
      invents or discards a logged set. */
@@ -93,9 +110,9 @@
       raw = localStorage.getItem(KEY);
     } catch (err) {
       readOnlyReason = 'This browser is blocking local storage, so nothing can be saved. Private/incognito mode usually causes this.';
-      return { ...DEFAULTS };
+      return withDefaults();
     }
-    if (!raw) return { ...DEFAULTS };
+    if (!raw) return withDefaults();
 
     let parsed;
     try {
@@ -108,7 +125,7 @@
       try { localStorage.setItem(stash, raw); } catch (e) { /* nothing more we can do */ }
       recoveryNotice = { kind: 'unreadable', stash };
       console.error('Saved data could not be parsed; quarantined at ' + stash, err);
-      return { ...DEFAULTS };
+      return withDefaults();
     }
 
     const stored = Number(parsed.version) || 1;
@@ -116,7 +133,7 @@
     if (stored > SCHEMA) {
       readOnlyReason = `This device has newer workout data (v${stored}) than the app currently loaded (v${SCHEMA}). ` +
         'Nothing will be saved until the app updates, so your history stays intact.';
-      return { ...DEFAULTS, ...parsed };
+      return withDefaults(parsed);
     }
 
     if (stored < SCHEMA) {
@@ -135,13 +152,13 @@
         console.error('Migration failed:', err);
         readOnlyReason = `Your data is v${stored} and could not be upgraded to v${SCHEMA}. ` +
           'Nothing will be saved. Export a backup from Settings before doing anything else.';
-        return { ...DEFAULTS, ...parsed };
+        return withDefaults(parsed);
       }
       recoveryNotice = { kind: 'migrated', from: stored, to: SCHEMA };
-      return { ...DEFAULTS, ...data, version: SCHEMA };
+      return { ...withDefaults(data), version: SCHEMA };
     }
 
-    return { ...DEFAULTS, ...parsed, version: SCHEMA };
+    return { ...withDefaults(parsed), version: SCHEMA };
   }
 
   let saveTimer = null;
@@ -421,19 +438,167 @@
      Rest timer
   ======================================================================= */
 
-  const rest = { endsAt: 0, total: 0, raf: null };
+  const rest = { endsAt: 0, total: 0, raf: null, timer: null };
 
   function startRest(seconds) {
     rest.total = seconds;
     rest.endsAt = Date.now() + seconds * 1000;
     $('#rest-bar').hidden = false;
+    /* The countdown UI rides on rAF, which stops the moment the page is
+       backgrounded. Hang the notification off a plain timer instead so it
+       doesn't depend on the screen being awake. */
+    clearTimeout(rest.timer);
+    rest.timer = setTimeout(notifyRestDone, seconds * 1000);
     tickRest();
   }
 
   function stopRest() {
     rest.endsAt = 0;
     cancelAnimationFrame(rest.raf);
+    clearTimeout(rest.timer);
+    rest.timer = null;
     $('#rest-bar').hidden = true;
+  }
+
+  /* iOS only shows notifications raised through the service-worker
+     registration — `new Notification()` is not available in an installed PWA. */
+  function notifyRestDone() {
+    if (!state.notifyRest) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification('Rest over', {
+        body: state.active ? `Next set — ${PROGRAM[state.active.day].name} day` : 'Next set',
+        tag: 'ppl-rest',            // replaces any earlier rest alert
+        renotify: true,
+        silent: false,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        data: { url: './index.html#/session' },
+      }))
+      .catch(() => { /* notifications are a nicety, never a failure path */ });
+  }
+
+  /* =======================================================================
+     Push reminders — talks to your own Worker, never a third party
+  ======================================================================= */
+
+  const pushBase = () => (state.push.url || '').replace(/\/+$/, '');
+
+  function b64urlToBytes(s) {
+    const pad = s.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(pad + '='.repeat((4 - (pad.length % 4)) % 4));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function pushFetch(path, opts) {
+    return fetch(pushBase() + path, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + (state.push.token || ''),
+        ...(opts && opts.headers),
+      },
+    });
+  }
+
+  async function currentPushSubscription() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+    const reg = await navigator.serviceWorker.ready;
+    return reg.pushManager.getSubscription();
+  }
+
+  async function pushEnable() {
+    if (!pushBase()) { toast('Add your push server URL first'); return; }
+    if (!('PushManager' in window)) { toast('This browser has no push support'); return; }
+    if (!(await enableRestNotifications())) return;
+
+    try {
+      const keyRes = await fetch(pushBase() + '/key');
+      if (!keyRes.ok) throw new Error('server returned ' + keyRes.status);
+      const { publicKey } = await keyRes.json();
+      if (!publicKey || /PASTE/.test(publicKey)) throw new Error('server has no VAPID key configured');
+
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true, // iOS requires every push to be visible
+          applicationServerKey: b64urlToBytes(publicKey),
+        });
+      }
+
+      const res = await pushFetch('/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          subscription: sub.toJSON(),
+          schedule: state.push.schedule,
+          hour: state.push.hour,
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        }),
+      });
+      if (res.status === 401) throw new Error('token rejected by the server');
+      if (!res.ok) throw new Error('server returned ' + res.status);
+
+      state.push.enabled = true;
+      save();
+      render();
+      toast('Reminders on');
+    } catch (err) {
+      console.error(err);
+      alert('Could not turn on reminders.\n\n' + err.message);
+    }
+  }
+
+  async function pushDisable() {
+    try {
+      const sub = await currentPushSubscription();
+      if (sub) {
+        await pushFetch('/subscribe', {
+          method: 'DELETE',
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {}); // local unsubscribe matters more than the bookkeeping
+        await sub.unsubscribe().catch(() => {});
+      }
+    } finally {
+      state.push.enabled = false;
+      save();
+      render();
+      toast('Reminders off');
+    }
+  }
+
+  /* Re-send the schedule without touching the subscription itself. */
+  async function pushSyncSchedule() {
+    if (!state.push.enabled) return;
+    const sub = await currentPushSubscription();
+    if (!sub) return;
+    await pushFetch('/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({
+        subscription: sub.toJSON(),
+        schedule: state.push.schedule,
+        hour: state.push.hour,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      }),
+    }).catch(() => {});
+  }
+
+  async function enableRestNotifications() {
+    if (typeof Notification === 'undefined') {
+      toast('This browser has no notification support');
+      return false;
+    }
+    // Must be called from a tap: iOS refuses the prompt otherwise.
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      toast(perm === 'denied' ? 'Notifications are blocked in system settings' : 'Notifications not enabled');
+      return false;
+    }
+    return true;
   }
 
   function tickRest() {
@@ -453,6 +618,7 @@
       beep();
       if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     }
+
     if (!over) rest.beeped = false;
 
     rest.raf = requestAnimationFrame(tickRest);
@@ -1114,12 +1280,54 @@
           <input type="number" step="any" inputmode="decimal" data-field="bodyweight" value="${state.bodyweight}"></label>
         <label class="field"><span class="label">Rest timer (seconds)</span>
           <input type="number" step="15" inputmode="numeric" data-field="restSeconds" value="${state.restSeconds}"></label>
-        <label class="field"><span class="label">Theme</span>
+        <div class="switch-row">
+          <span>
+            <span>Notify when rest ends</span>
+            <span class="small muted" style="display:block;max-width:34ch">Shows on the lock screen as well as the beep. iOS may not fire it if you switch away from the app mid-set.</span>
+          </span>
+          <button class="btn sm ${state.notifyRest ? 'primary' : ''}" data-action="toggle-rest-notify">${state.notifyRest ? 'On' : 'Off'}</button>
+        </div>
+        <label class="field" style="margin-top:12px"><span class="label">Theme</span>
           <select data-field="theme">
             <option value="system"${state.theme === 'system' ? ' selected' : ''}>Match device</option>
             <option value="dark"${state.theme === 'dark' ? ' selected' : ''}>Dark</option>
             <option value="light"${state.theme === 'light' ? ' selected' : ''}>Light</option>
           </select></label>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:14px;margin-bottom:4px">Training reminders</h2>
+        <div class="small muted" style="margin-bottom:11px">
+          Scheduled push from your own Cloudflare Worker. It stores a subscription and these
+          days only — no workout data ever leaves this device.
+        </div>
+        <label class="field"><span class="label">Push server URL</span>
+          <input type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false"
+                 data-field="push-url" value="${esc(state.push.url)}" placeholder="https://ppl-push.you.workers.dev"></label>
+        <label class="field"><span class="label">Shared token</span>
+          <input type="password" autocapitalize="off" autocorrect="off" spellcheck="false"
+                 data-field="push-token" value="${esc(state.push.token)}" placeholder="from wrangler secret put PUSH_TOKEN"></label>
+        <label class="field"><span class="label">Remind me at</span>
+          <select data-field="push-hour">
+            ${Array.from({ length: 24 }, (_, h) => `<option value="${h}"${h === state.push.hour ? ' selected' : ''}>${
+              ((h % 12) || 12) + ':00 ' + (h < 12 ? 'am' : 'pm')
+            }</option>`).join('')}
+          </select></label>
+        <div class="label" style="margin-bottom:5px">Which day is which</div>
+        ${['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => `
+          <div class="switch-row" style="padding:5px 0">
+            <span style="text-transform:capitalize">${d}</span>
+            <select data-field="push-day" data-day="${d}" style="width:auto;min-width:120px;min-height:38px">
+              ${[['', 'Rest'], ['push', 'Push'], ['pull', 'Pull'], ['legs', 'Legs']].map(([v, n]) =>
+                `<option value="${v}"${(state.push.schedule[d] || '') === v ? ' selected' : ''}>${n}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+        <div class="stack" style="margin-top:12px">
+          <button class="btn block ${state.push.enabled ? 'danger' : 'primary'}" data-action="${state.push.enabled ? 'push-disable' : 'push-enable'}">
+            ${state.push.enabled ? 'Turn reminders off' : 'Turn reminders on'}
+          </button>
+          ${state.push.enabled ? '<button class="btn block ghost" data-action="push-test">Send a test now</button>' : ''}
+        </div>
       </div>
 
       <div class="card">
@@ -1270,6 +1478,36 @@
       location.hash = '#/home';
     },
 
+    async 'toggle-rest-notify'() {
+      if (state.notifyRest) {
+        state.notifyRest = false;
+        save();
+        render();
+        return;
+      }
+      if (!(await enableRestNotifications())) return;
+      state.notifyRest = true;
+      save();
+      render();
+      notifyRestDone(); // one immediate example so it's obvious it works
+    },
+
+    'push-enable'() { pushEnable(); },
+    'push-disable'() { pushDisable(); },
+
+    async 'push-test'() {
+      const sub = await currentPushSubscription();
+      if (!sub) { toast('Not subscribed'); return; }
+      try {
+        const res = await pushFetch('/test', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+        const out = await res.json().catch(() => ({}));
+        if (res.ok && out.ok) toast('Test sent');
+        else alert('Push server could not deliver it.\n\n' + (out.status ? 'status ' + out.status + '\n' : '') + (out.text || out.error || ''));
+      } catch (err) {
+        alert('Could not reach the push server.\n\n' + err.message);
+      }
+    },
+
     'hard-refresh'() { hardRefresh(); },
 
     'dismiss-banner'() {
@@ -1295,7 +1533,7 @@
       const when = new Date(backup.savedAt).toLocaleString();
       const n = backup.state.sessions.length;
       if (!confirm(`Replace current data with the auto-backup from ${when} (${n} sessions)?`)) return;
-      state = { ...DEFAULTS, ...backup.state, version: SCHEMA };
+      state = { ...withDefaults(backup.state), version: SCHEMA };
       recoveryNotice = null;
       writeNow();
       applyTheme();
@@ -1356,7 +1594,7 @@
     wipe() {
       if (!confirm('Erase every logged session and setting on this device? This cannot be undone.')) return;
       if (!confirm('Really erase everything?')) return;
-      state = { ...DEFAULTS, startDate: todayISO() };
+      state = { ...withDefaults(), startDate: todayISO() };
       localStorage.removeItem(KEY);
       save();
       location.hash = '#/home';
@@ -1447,6 +1685,16 @@
       save();
       return;
     }
+    if (f === 'push-url') { state.push.url = el.value.trim(); save(); return; }
+    if (f === 'push-token') { state.push.token = el.value.trim(); save(); return; }
+    if (f === 'push-hour') { state.push.hour = Number(el.value); save(); pushSyncSchedule(); return; }
+    if (f === 'push-day') {
+      state.push.schedule[el.dataset.day] = el.value;
+      save();
+      pushSyncSchedule();
+      return;
+    }
+
     if (f === 'startDate') { state.startDate = el.value || todayISO(); save(); render(); return; }
     if (f === 'cycleLength') { state.cycleLength = Number(el.value); save(); render(); return; }
     if (f === 'weekOffset') { state.weekOffset = Math.round(num(el.value) || 0); save(); render(); return; }
@@ -1598,7 +1846,7 @@
         try {
           const data = JSON.parse(reader.result);
           if (!data || !Array.isArray(data.sessions)) throw new Error('Not a PPL backup');
-          state = { ...DEFAULTS, ...data };
+          state = withDefaults(data);
           save();
           applyTheme();
           render();

@@ -69,6 +69,19 @@ produces the right progression suggestion; the migration path from the previous
 `SCHEMA` preserves every session; and the console is clean at phone width in
 both themes.
 
+### push-server/ — the reminder Worker
+
+`push-server/` is a Cloudflare Worker sending scheduled reminders. It stores a
+push subscription, a weekday map, an hour, and a timezone — **never workout
+data**, and there is a test asserting that. Keep it that way: if a change would
+send anything about sessions, sets, or movements to the Worker, it needs saying
+out loud first, because it breaks the promise the rest of this app is built on.
+
+Secrets (`VAPID_PRIVATE_KEY`, `PUSH_TOKEN`) live in `wrangler secret`, never in
+the repo. `npm test` in that folder checks the RFC 8291 encryption by decrypting
+from the receiving side, and the VAPID JWT by verifying its signature — both
+fail silently on a real phone if wrong, so don't skip them.
+
 ### Deploying
 
 `main` (or whichever branch GitHub Pages is pointed at) is live on his phone.

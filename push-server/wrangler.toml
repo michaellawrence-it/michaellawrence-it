@@ -1,0 +1,23 @@
+name = "ppl-push"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# Hourly. Each subscription stores its own timezone and target hour, so the
+# Worker wakes every hour and only sends to whoever matches right then.
+[triggers]
+crons = ["0 * * * *"]
+
+# Public — not a secret. Replace with the VAPID_PUBLIC_KEY printed by `npm run keys`.
+[vars]
+VAPID_PUBLIC_KEY = "PASTE_YOUR_VAPID_PUBLIC_KEY"
+VAPID_SUBJECT = "mailto:mikeylaw23@gmail.com"
+
+# Create with:  wrangler kv namespace create SUBS
+# then paste the id it prints here.
+[[kv_namespaces]]
+binding = "SUBS"
+id = "PASTE_YOUR_KV_NAMESPACE_ID"
+
+# Secrets are NOT set here — they'd end up in git. Set them once with:
+#   wrangler secret put VAPID_PRIVATE_KEY
+#   wrangler secret put PUSH_TOKEN
