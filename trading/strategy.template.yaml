@@ -1,0 +1,59 @@
+# ============================================================================
+# TRADING RULEBOOK — TEMPLATE (all values are placeholders, tune before use)
+# Copy to strategy.yaml and fill in. The daily routine reads strategy.yaml as
+# its exhaustive rulebook: anything not explicitly permitted here does not
+# happen. Numbers below are illustrative defaults, not recommendations.
+# ============================================================================
+
+mode: paper                     # paper | live   (live enforces order approvals)
+
+budget:
+  total_usd: 0                  # hard cap; also fund the account with exactly this
+  max_deployed_pct: 80          # max % of budget in open positions at any time
+  reserve:
+    pct_of_realized_gains: 30   # slice of each realized gain moved to reserve
+    reserve_is_tradable: false  # reserve cash is never redeployed by the routine
+
+universe:
+  tickers: []                   # explicit allowlist, e.g. [VOO, QQQ, AAPL, MSFT]
+  max_positions: 5              # max simultaneous open positions
+  min_avg_dollar_volume: 5000000  # skip illiquid names regardless of allowlist
+
+entries:                        # what counts as a buyable "dip"
+  dip_trigger:
+    lookback_days: 20
+    drop_pct_from_high: 5       # price at least 5% below its 20-day high
+  confirmation:
+    min_volume_ratio: 1.0       # today's volume vs 30-day average
+    skip_if_earnings_within_days: 3   # no entries right before earnings
+  sizing:
+    per_trade_usd: 0
+    max_per_symbol_usd: 0       # cap total exposure to any one ticker
+  order_type: limit             # limit | market
+  limit_offset_pct: 0.2         # limit price this % below last quote
+
+exits:
+  take_profit_pct: 8            # sell when up this much from entry
+  stop_loss_pct: 4              # sell when down this much from entry
+  max_hold_days: 10             # time-based exit — keeps the week-trading cadence
+
+risk:
+  use_margin: false             # cash only; no leverage in v1
+  allow_short_selling: false
+  allow_options: false
+  max_trades_per_day: 3
+  daily_loss_halt_pct: 3        # portfolio down this much today → stop for the day
+  weekly_loss_halt_pct: 6       # ...this much on the week → stop until human review
+  respect_pdt_rule: true        # never place a 4th day-trade in 5 sessions <$25k
+
+schedule:
+  run_days: [mon, tue, wed, thu, fri]
+  run_time_et: "10:00"          # after opening volatility settles
+  skip_market_holidays: true
+
+approvals:
+  live_orders_require_approval: true    # non-negotiable; do not set false
+  paper_orders_require_approval: false
+notifications:
+  daily_report: true            # push/email summary after each run
+  alert_on_halt: true           # immediately notify if a loss-halt triggers
