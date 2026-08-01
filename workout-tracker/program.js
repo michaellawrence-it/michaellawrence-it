@@ -56,6 +56,10 @@ const EXERCISES = {
   face_pull:       { name: 'Face Pull',                kind: 'cable',      inc: 5 },
   rear_delt_fly:   { name: 'Rear Delt Fly',            kind: 'machine',    inc: 5 },
   bb_curl:         { name: 'Barbell Curl',             kind: 'barbell',    inc: 5 },
+  // Supinated, both arms — the unqualified 'dumbbell curl'. The hammer
+  // curls below are the neutral-grip version.
+  db_curl:         { name: 'Dumbbell Curl',            kind: 'dumbbell',   inc: 5 },
+  db_curl_alt:     { name: 'Alternating Dumbbell Curl', kind: 'dumbbell',  inc: 5 },
   ez_curl:         { name: 'EZ-Bar Curl',              kind: 'barbell',    inc: 5 },
   db_hammer:       { name: 'Dumbbell Hammer Curl',     kind: 'dumbbell',   inc: 5 },
   rope_hammer:     { name: 'Rope Hammer Curl',         kind: 'cable',      inc: 5 },
@@ -188,7 +192,7 @@ const DAY_POOL = {
     { group: 'Rows',              sets: 3, reps: [8, 10],  ids: ['bb_row', 'db_row', 'db_row_alt', 'db_row_1arm', 'tbar_row', 'low_row', 'chest_supp_row'] },
     { group: 'Rear delts / lats', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly', 'straight_arm_pd'] },
     { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['bb_shrug', 'db_shrug'] },
-    { group: 'Biceps',            sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl', 'preacher_curl', 'cable_curl', 'conc_curl', 'reverse_curl'] },
+    { group: 'Biceps',            sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_curl', 'db_curl_alt', 'db_hammer', 'rope_hammer', 'incline_db_curl', 'preacher_curl', 'cable_curl', 'conc_curl', 'reverse_curl'] },
   ],
   legs: [
     { group: 'Squat / press',     sets: 3, reps: [8, 10],  ids: ['back_squat', 'front_squat', 'goblet_squat', 'leg_press', 'hack_squat'] },
