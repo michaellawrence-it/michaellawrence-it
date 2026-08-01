@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.17';
+  const BUILD = '2026-07-26.18';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -640,6 +640,11 @@
       })),
     };
   }
+
+  /* Right-hand fields the lifter has edited themselves, so the left stops
+     mirroring onto them. Session-scoped and deliberately not persisted — the
+     equality check above re-derives divergence after a reload. */
+  const sideUnlinked = new Set();
 
   function findEntry(slotId) {
     return state.active ? state.active.entries.find((e) => e.slotId === slotId) : null;
@@ -1697,6 +1702,7 @@
       if (state.active && state.active.day !== dayKey) {
         if (!confirm(`You have an unfinished ${PROGRAM[state.active.day].name} session. Discard it?`)) return;
       }
+      sideUnlinked.clear();
       if (!state.active || state.active.day !== dayKey) state.active = newSession(dayKey);
       save();
       location.hash = '#/session';
@@ -1787,6 +1793,7 @@
       s.entries.forEach((e) => { e.sets = e.sets.filter((x) => (x.r && x.r > 0) || (x.r2 && x.r2 > 0)); });
       s.entries = s.entries.filter((e) => e.sets.length);
       s.ts = Date.now();
+      sideUnlinked.clear();
       state.sessions.push(s);
       state.active = null;
       stopRest();
@@ -1800,6 +1807,7 @@
 
     discard() {
       if (!confirm('Discard this session? Nothing will be saved.')) return;
+      sideUnlinked.clear();
       state.active = null;
       stopRest();
       releaseWakeLock();
@@ -1970,9 +1978,32 @@
     if (f === 'w' || f === 'r' || f === 'w2' || f === 'r2') {
       const entry = findEntry(el.dataset.slot);
       if (!entry) return;
-      const set = entry.sets[Number(el.dataset.set)];
+      const idx = Number(el.dataset.set);
+      const set = entry.sets[idx];
+      const before = set[f];
       const v = num(el.value);
       set[f] = (f === 'r' || f === 'r2') && v !== null ? Math.round(v) : v;
+
+      if (isUni(entry.exerciseId)) {
+        if (f === 'w2' || f === 'r2') {
+          // Touching the right side by hand unlinks it for good.
+          sideUnlinked.add(`${entry.slotId}:${idx}:${f}`);
+        } else {
+          /* Mirror left onto right, since the sides usually match and typing
+             every number twice is tedious. Stop as soon as they diverge:
+             either an explicit edit above, or — after a reload, when that flag
+             is gone — the right no longer matching what the left just was. */
+          const mirror = f === 'w' ? 'w2' : 'r2';
+          const linked = !sideUnlinked.has(`${entry.slotId}:${idx}:${mirror}`)
+            && (set[mirror] === null || set[mirror] === before);
+          if (linked) {
+            set[mirror] = set[f];
+            const other = $(`input[data-field="${mirror}"][data-slot="${entry.slotId}"][data-set="${idx}"]`);
+            if (other) other.value = set[mirror] === null ? '' : set[mirror];
+          }
+        }
+      }
+
       refreshVol(el.dataset.slot);
       save();
       return;

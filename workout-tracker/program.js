@@ -56,7 +56,7 @@ const EXERCISES = {
   low_row:         { name: 'Seated Low Row',           kind: 'machine',    inc: 10 },
   chest_supp_row:  { name: 'Chest-Supported Row',      kind: 'machine',    inc: 5 },
   face_pull:       { name: 'Face Pull',                kind: 'cable',      inc: 5 },
-  rear_delt_fly:   { name: 'Rear Delt Fly',            kind: 'machine',    inc: 5 },
+  rear_delt_fly:   { name: 'Rear Delt Fly',            kind: 'machine',    inc: 5, uni: true },
   bb_curl:         { name: 'Barbell Curl',             kind: 'barbell',    inc: 5 },
   // Supinated, both arms — the unqualified 'dumbbell curl'. The hammer
   // curls below are the neutral-grip version.
