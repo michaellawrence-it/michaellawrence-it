@@ -201,6 +201,33 @@ li.checked .ing-text{opacity:.42; text-decoration:line-through}
   .cook{height:100dvh}
 }
 
+/* ---------- Phones ---------- */
+@media (max-width: 640px){
+  .hide-sm, .awake-lbl{display:none}
+  .btn{padding:10px 14px; font-size:15px}
+  .home-head{padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+  .home-head h1{font-size:23px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .home-head .row1{gap:8px}
+  #search{padding:12px 40px 12px 42px; font-size:16px}
+  .grid{padding:14px 14px calc(30px + env(safe-area-inset-bottom)); gap:12px}
+  .cookbar{padding:calc(10px + env(safe-area-inset-top)) 12px 8px; gap:8px}
+  .summary{margin:2px 14px 14px; padding:16px; gap:14px; border-radius:18px}
+  .sum-left{gap:14px}
+  .sum-left .emoji{width:64px; height:64px; font-size:36px; border-radius:16px}
+  .sum-left h2{font-size:26px}
+  .sum-left .desc{font-size:15px}
+  .sum-meta{font-size:13px}
+  .stepper{padding:12px 14px}
+  .stepbtn{width:50px; height:50px; font-size:26px}
+  .serv b{font-size:36px}
+  .cols{padding:0 14px}
+  .ing-text{font-size:18px}
+  .steps .txt{font-size:18px}
+  .steps .num{font-size:22px; width:30px}
+  .edit{padding-left:14px; padding-right:14px}
+  .editbar{padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+}
+
 /* ---------- Edit view ---------- */
 .edit{max-width:920px; margin:0 auto; padding:calc(12px + env(safe-area-inset-top)) 22px 130px}
 .edit .bar{display:flex; align-items:center; gap:10px; padding-bottom:6px}
@@ -464,6 +491,79 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
+    id:"seed-full-english", emoji:"🍳", title:"Full English Breakfast",
+    summary:"The works — sausages, bacon, eggs, beans, mushrooms and toast, all hot on one plate.",
+    tags:["Breakfast"], baseServings:2, prepMins:5, cookMins:20,
+    ingredients:[
+      "4 sausages","4 rashers back bacon","2 eggs","1 can (400g) baked beans",
+      "6 mushrooms, halved","2 tomatoes, halved","2 slices bread, for toast",
+      "1 tbsp butter","Vegetable oil, for frying","Salt and black pepper, to taste"
+    ],
+    steps:[
+      "Get the sausages going first — fry or grill over medium heat, turning now and then, for 12–15 minutes.",
+      "Add the bacon alongside for the last 6 minutes, until crisp at the edges.",
+      "Fry the mushrooms and tomatoes (cut-side down) in a little oil until golden and soft.",
+      "Warm the beans in a small pan over low heat.",
+      "Last of all, fry the eggs in a little oil until the whites are set but the yolks still runny.",
+      "Toast and butter the bread, load up the plates, and season the eggs and tomatoes."
+    ],
+    notes:"Timing is everything: sausages on first, eggs on last.",
+    createdAt:0, updatedAt:0
+  },
+  {
+    id:"seed-french-toast", emoji:"🍞", title:"French Toast",
+    summary:"Golden pan-fried brioche soaked in vanilla-cinnamon custard — weekend breakfast at its best.",
+    tags:["Breakfast","Sweet"], baseServings:2, prepMins:10, cookMins:10,
+    ingredients:[
+      "4 slices thick brioche or white bread","2 eggs","½ cup milk","1 tsp vanilla extract",
+      "½ tsp ground cinnamon","1 tbsp caster sugar","2 tbsp butter, for frying",
+      "Maple syrup and berries, to serve"
+    ],
+    steps:[
+      "Whisk the eggs, milk, vanilla, cinnamon and sugar together in a wide, shallow dish.",
+      "Soak each slice of bread in the custard for about 20 seconds per side.",
+      "Melt half the butter in a frying pan over medium heat.",
+      "Fry the slices for 2–3 minutes per side until deep golden, adding the rest of the butter as you go.",
+      "Serve straight from the pan with maple syrup and berries."
+    ],
+    notes:"Slightly stale bread soaks up the custard best.",
+    createdAt:0, updatedAt:0
+  },
+  {
+    id:"seed-overnight-oats", emoji:"🥣", title:"Overnight Oats",
+    summary:"Creamy no-cook oats made the night before — grab a jar and breakfast is done.",
+    tags:["Breakfast","Fast"], baseServings:1, prepMins:5, cookMins:0,
+    ingredients:[
+      "½ cup rolled oats","½ cup milk","¼ cup Greek yogurt","1 tbsp chia seeds (optional)",
+      "1 tbsp honey or maple syrup","¼ tsp ground cinnamon","1 pinch salt",
+      "Berries or sliced banana, to top"
+    ],
+    steps:[
+      "Stir the oats, milk, yogurt, chia, honey, cinnamon and salt together in a jar.",
+      "Cover and refrigerate overnight (or at least 4 hours).",
+      "In the morning, loosen with a splash of milk if needed and pile on the toppings."
+    ],
+    notes:"Keeps 3 days in the fridge — scale it up and make a few jars at once.",
+    createdAt:0, updatedAt:0
+  },
+  {
+    id:"seed-avocado-toast", emoji:"🥑", title:"Smashed Avocado Toast",
+    summary:"Charred sourdough with lemony smashed avocado, fried eggs and a pinch of chilli.",
+    tags:["Breakfast","Fast","Veggie"], baseServings:1, prepMins:10, cookMins:5,
+    ingredients:[
+      "1 ripe avocado","2 slices sourdough","2 eggs","½ lemon, juiced",
+      "1 pinch chilli flakes","Salt and black pepper, to taste","Olive oil, for frying and drizzling"
+    ],
+    steps:[
+      "Fry the eggs in a little olive oil until the whites are set and the edges are crisp.",
+      "Meanwhile, toast the sourdough until well browned.",
+      "Smash the avocado with the lemon juice and a good pinch of salt and pepper.",
+      "Pile the avocado onto the toast, top with the eggs, and finish with chilli flakes and a drizzle of olive oil."
+    ],
+    notes:"",
+    createdAt:0, updatedAt:0
+  },
+  {
     id:"seed-curry", emoji:"🍛", title:"Easy Chicken Curry",
     summary:"A gentle coconut chicken curry with everyday spices — one pan and ready in under an hour.",
     tags:["Dinner","Spicy"], baseServings:4, prepMins:15, cookMins:30,
@@ -551,7 +651,7 @@ function paintAwakeBtn(){
   const on = !!wakeLock;
   b.classList.toggle("on", on);
   b.setAttribute("aria-pressed", on);
-  b.innerHTML = on ? "☀️&nbsp; Screen staying on" : "☀️&nbsp; Keep screen on";
+  b.innerHTML = on ? "☀️<span class='awake-lbl'>&nbsp; Screen staying on</span>" : "☀️<span class='awake-lbl'>&nbsp; Keep screen on</span>";
 }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && preferAwake && view.name === "cook") acquireWake();
@@ -622,7 +722,7 @@ function renderHome(){
     <div class="row1">
       <h1>${esc(APP_NAME)}</h1>
       <button class="btn btn-icon" data-action="open-modal" aria-label="Import or export recipes">⇅</button>
-      <button class="btn btn-primary" data-action="add-recipe">＋&nbsp;Add recipe</button>
+      <button class="btn btn-primary" data-action="add-recipe">＋&nbsp;Add<span class="hide-sm">&nbsp;recipe</span></button>
     </div>
     <div class="searchwrap">
       <span class="mag">🔍</span>
@@ -662,7 +762,7 @@ function renderCook(r){
     <div class="cookbar">
       <button class="btn" data-action="back-home">←&nbsp; Recipes</button>
       <span class="spacer"></span>
-      ${wakeSupported ? `<button class="btn" id="awakeBtn" data-action="toggle-awake" aria-pressed="false">☀️&nbsp; Keep screen on</button>` : ""}
+      ${wakeSupported ? `<button class="btn" id="awakeBtn" data-action="toggle-awake" aria-pressed="false" aria-label="Keep screen awake">☀️<span class="awake-lbl">&nbsp; Keep screen on</span></button>` : ""}
       <button class="btn" data-action="edit-recipe">✎&nbsp; Edit</button>
     </div>
 
