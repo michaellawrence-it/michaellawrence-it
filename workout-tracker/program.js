@@ -26,11 +26,22 @@ const EXERCISES = {
   db_oh_ext:       { name: 'DB Overhead Tricep Ext.',  kind: 'dumbbell',   inc: 5 },
   cable_oh_ext:    { name: 'Cable Overhead Tricep Ext.', kind: 'cable',    inc: 5 },
   ez_skullcrusher: { name: 'EZ-Bar Skullcrusher',      kind: 'barbell',    inc: 5 },
+  db_bench:        { name: 'Flat Dumbbell Bench Press', kind: 'dumbbell',  inc: 5 },
+  decline_bb:      { name: 'Decline Barbell Press',    kind: 'barbell',    inc: 5 },
+  machine_press:   { name: 'Machine Chest Press',      kind: 'machine',    inc: 5 },
+  pushup:          { name: 'Push-ups',                 kind: 'bodyweight', inc: 5, bw: true },
+  cg_bench:        { name: 'Close-Grip Bench Press',   kind: 'barbell',    inc: 5 },
+  incline_db_fly:  { name: 'Incline Dumbbell Fly',     kind: 'dumbbell',   inc: 5 },
+  db_ohp:          { name: 'Seated Dumbbell Press',    kind: 'dumbbell',   inc: 5 },
+  arnold_press:    { name: 'Arnold Press',             kind: 'dumbbell',   inc: 5 },
+  machine_ohp:     { name: 'Machine Shoulder Press',   kind: 'machine',    inc: 5 },
+  db_front_raise:  { name: 'Dumbbell Front Raise',     kind: 'dumbbell',   inc: 5 },
+  bench_dip:       { name: 'Bench Dip',                kind: 'bodyweight', inc: 5, bw: true },
 
   // --- Pull ---------------------------------------------------------------
-  // Both are the conventional pull. Sumo/Romanian/trap-bar are deliberately
-  // absent — add them as NEW keys if they're ever trained, never by
-  // repurposing these.
+  // Both are the conventional pull. Romanian is a separate key over on Legs;
+  // sumo and trap-bar are absent. Any variant goes in as a NEW key, never by
+  // repurposing these — that would silently rewrite what past sessions mean.
   deadlift:        { name: 'Conventional Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
   db_deadlift:     { name: 'Conventional Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
   pullup:          { name: 'Pull-ups (pronated)',      kind: 'bodyweight', inc: 5, bw: true },
@@ -49,6 +60,15 @@ const EXERCISES = {
   db_hammer:       { name: 'Dumbbell Hammer Curl',     kind: 'dumbbell',   inc: 5 },
   rope_hammer:     { name: 'Rope Hammer Curl',         kind: 'cable',      inc: 5 },
   incline_db_curl: { name: 'Incline Dumbbell Curl',    kind: 'dumbbell',   inc: 5 },
+  db_row_1arm:     { name: 'One-Arm Dumbbell Row',     kind: 'dumbbell',   inc: 5 },
+  tbar_row:        { name: 'T-Bar Row',                kind: 'barbell',    inc: 10 },
+  straight_arm_pd: { name: 'Straight-Arm Pulldown',    kind: 'cable',      inc: 5 },
+  bb_shrug:        { name: 'Barbell Shrug',            kind: 'barbell',    inc: 10 },
+  db_shrug:        { name: 'Dumbbell Shrug',           kind: 'dumbbell',   inc: 5 },
+  preacher_curl:   { name: 'Preacher Curl',            kind: 'barbell',    inc: 5 },
+  cable_curl:      { name: 'Cable Curl',               kind: 'cable',      inc: 5 },
+  conc_curl:       { name: 'Concentration Curl',       kind: 'dumbbell',   inc: 5 },
+  reverse_curl:    { name: 'Reverse Curl',             kind: 'barbell',    inc: 5 },
 
   // --- Legs ---------------------------------------------------------------
   back_squat:      { name: 'Back Squat',               kind: 'barbell',    inc: 10 },
@@ -65,6 +85,19 @@ const EXERCISES = {
   hanging_knee:    { name: 'Hanging Knee Raise',       kind: 'bodyweight', inc: 5, bw: true },
   hanging_leg:     { name: 'Hanging Leg Raise',        kind: 'bodyweight', inc: 5, bw: true },
   captains_chair:  { name: "Captain's Chair Knee Raise", kind:'bodyweight',inc: 5, bw: true },
+  front_squat:     { name: 'Front Squat',              kind: 'barbell',    inc: 10 },
+  goblet_squat:    { name: 'Goblet Squat',             kind: 'dumbbell',   inc: 5 },
+  bulgarian_split: { name: 'Bulgarian Split Squat',    kind: 'dumbbell',   inc: 5 },
+  walking_lunge:   { name: 'Walking Lunge',            kind: 'dumbbell',   inc: 5 },
+  step_up:         { name: 'Dumbbell Step-Up',         kind: 'dumbbell',   inc: 5 },
+  leg_ext:         { name: 'Leg Extension',            kind: 'machine',    inc: 5 },
+  rdl:             { name: 'Romanian Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
+  db_rdl:          { name: 'Romanian Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
+  good_morning:    { name: 'Good Morning',             kind: 'barbell',    inc: 5 },
+  hip_thrust:      { name: 'Barbell Hip Thrust',       kind: 'barbell',    inc: 10 },
+  cable_crunch:    { name: 'Cable Crunch',             kind: 'cable',      inc: 5 },
+  ab_wheel:        { name: 'Ab Wheel Rollout',         kind: 'bodyweight', inc: 5, bw: true },
+  decline_situp:   { name: 'Decline Sit-Up',           kind: 'bodyweight', inc: 5, bw: true },
 };
 
 /* ---------------------------------------------------------------------------
@@ -142,22 +175,29 @@ const DAY_KEYS = ['push', 'pull', 'legs'];
 --------------------------------------------------------------------------- */
 const DAY_POOL = {
   push: [
-    { group: 'Presses',   sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'dips', 'ohp_bb'] },
-    { group: 'Chest',     sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly'] },
-    { group: 'Delts',     sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
-    { group: 'Triceps',   sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown'] },
+    { group: 'Chest press',       sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'db_bench', 'decline_bb', 'machine_press', 'dips', 'pushup', 'cg_bench'] },
+    { group: 'Chest isolation',   sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly', 'incline_db_fly'] },
+    { group: 'Shoulder press',    sets: 3, reps: [6, 10],  ids: ['ohp_bb', 'db_ohp', 'arnold_press', 'machine_ohp'] },
+    { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise', 'db_front_raise'] },
+    { group: 'Triceps',           sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown', 'bench_dip'] },
   ],
   pull: [
-    { group: 'Pulls',     sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift', 'pullup', 'neutral_pullup', 'chinup', 'bb_row', 'db_row', 'lat_pulldown', 'close_pulldown', 'low_row', 'chest_supp_row'] },
-    { group: 'Rear delts', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly'] },
-    { group: 'Biceps',    sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl'] },
+    { group: 'Hinge',             sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift'] },
+    { group: 'Vertical pull',     sets: 3, reps: [6, 10],  ids: ['pullup', 'neutral_pullup', 'chinup', 'lat_pulldown', 'close_pulldown'] },
+    { group: 'Rows',              sets: 3, reps: [8, 10],  ids: ['bb_row', 'db_row', 'db_row_1arm', 'tbar_row', 'low_row', 'chest_supp_row'] },
+    { group: 'Rear delts / lats', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly', 'straight_arm_pd'] },
+    { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['bb_shrug', 'db_shrug'] },
+    { group: 'Biceps',            sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl', 'preacher_curl', 'cable_curl', 'conc_curl', 'reverse_curl'] },
   ],
   legs: [
-    { group: 'Squat / press', sets: 3, reps: [8, 10], ids: ['back_squat', 'leg_press', 'hack_squat'] },
-    { group: 'Hamstrings', sets: 3, reps: [10, 12], ids: ['lying_leg_curl', 'seated_leg_curl'] },
-    { group: 'Hips',      sets: 3, reps: [12, 15], ids: ['adductor', 'abductor', 'cable_abduction'] },
-    { group: 'Calves',    sets: 4, reps: [12, 15], ids: ['standing_calf', 'seated_calf', 'press_calf'] },
-    { group: 'Core',      sets: 3, reps: [12, 15], ids: ['hanging_knee', 'hanging_leg', 'captains_chair'] },
+    { group: 'Squat / press',     sets: 3, reps: [8, 10],  ids: ['back_squat', 'front_squat', 'goblet_squat', 'leg_press', 'hack_squat'] },
+    { group: 'Lunges & split squats', sets: 3, reps: [8, 12], ids: ['bulgarian_split', 'walking_lunge', 'step_up'] },
+    { group: 'Quads',             sets: 3, reps: [10, 15], ids: ['leg_ext'] },
+    { group: 'Hamstrings & hinge', sets: 3, reps: [8, 12], ids: ['lying_leg_curl', 'seated_leg_curl', 'rdl', 'db_rdl', 'good_morning'] },
+    { group: 'Glutes',            sets: 3, reps: [8, 12],  ids: ['hip_thrust'] },
+    { group: 'Hips',              sets: 3, reps: [12, 15], ids: ['adductor', 'abductor', 'cable_abduction'] },
+    { group: 'Calves',            sets: 4, reps: [12, 15], ids: ['standing_calf', 'seated_calf', 'press_calf'] },
+    { group: 'Core',              sets: 3, reps: [12, 15], ids: ['hanging_knee', 'hanging_leg', 'captains_chair', 'cable_crunch', 'ab_wheel', 'decline_situp'] },
   ],
 };
 

@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.11';
+  const BUILD = '2026-07-26.12';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -1316,7 +1316,9 @@
     // Group the picker by day so it reads like the program.
     const placed = new Set();
     let byDay = DAY_KEYS.map((dk) => {
-      const inDay = ids.filter((id) => PROGRAM[dk].slots.some((sl) => sl.options.includes(id)));
+      // Group by the day's POOL, not its slot options: most movements are
+      // selectable without being programmed, and those are current, not retired.
+      const inDay = ids.filter((id) => dayOfExercise(id) === dk);
       inDay.forEach((id) => placed.add(id));
       if (!inDay.length) return '';
       return `<optgroup label="${esc(PROGRAM[dk].name)}">${inDay
