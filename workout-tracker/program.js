@@ -61,6 +61,7 @@ const EXERCISES = {
   rope_hammer:     { name: 'Rope Hammer Curl',         kind: 'cable',      inc: 5 },
   incline_db_curl: { name: 'Incline Dumbbell Curl',    kind: 'dumbbell',   inc: 5 },
   db_row_1arm:     { name: 'One-Arm Dumbbell Row',     kind: 'dumbbell',   inc: 5 },
+  db_row_alt:      { name: 'Alternating Dumbbell Row', kind: 'dumbbell',   inc: 5 },
   tbar_row:        { name: 'T-Bar Row',                kind: 'barbell',    inc: 10 },
   straight_arm_pd: { name: 'Straight-Arm Pulldown',    kind: 'cable',      inc: 5 },
   bb_shrug:        { name: 'Barbell Shrug',            kind: 'barbell',    inc: 10 },
@@ -184,7 +185,7 @@ const DAY_POOL = {
   pull: [
     { group: 'Hinge',             sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift'] },
     { group: 'Vertical pull',     sets: 3, reps: [6, 10],  ids: ['pullup', 'neutral_pullup', 'chinup', 'lat_pulldown', 'close_pulldown'] },
-    { group: 'Rows',              sets: 3, reps: [8, 10],  ids: ['bb_row', 'db_row', 'db_row_1arm', 'tbar_row', 'low_row', 'chest_supp_row'] },
+    { group: 'Rows',              sets: 3, reps: [8, 10],  ids: ['bb_row', 'db_row', 'db_row_alt', 'db_row_1arm', 'tbar_row', 'low_row', 'chest_supp_row'] },
     { group: 'Rear delts / lats', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly', 'straight_arm_pd'] },
     { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['bb_shrug', 'db_shrug'] },
     { group: 'Biceps',            sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl', 'preacher_curl', 'cable_curl', 'conc_curl', 'reverse_curl'] },
