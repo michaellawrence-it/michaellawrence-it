@@ -28,8 +28,11 @@ const EXERCISES = {
   ez_skullcrusher: { name: 'EZ-Bar Skullcrusher',      kind: 'barbell',    inc: 5 },
 
   // --- Pull ---------------------------------------------------------------
-  deadlift:        { name: 'Barbell Deadlift',         kind: 'barbell',    inc: 10 },
-  db_deadlift:     { name: 'Dumbbell Deadlift',        kind: 'dumbbell',   inc: 5 },
+  // Both are the conventional pull. Sumo/Romanian/trap-bar are deliberately
+  // absent — add them as NEW keys if they're ever trained, never by
+  // repurposing these.
+  deadlift:        { name: 'Conventional Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
+  db_deadlift:     { name: 'Conventional Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
   pullup:          { name: 'Pull-ups (pronated)',      kind: 'bodyweight', inc: 5, bw: true },
   chinup:          { name: 'Chin-ups (supinated)',     kind: 'bodyweight', inc: 5, bw: true },
   neutral_pullup:  { name: 'Neutral-Grip Pull-ups',    kind: 'bodyweight', inc: 5, bw: true },
