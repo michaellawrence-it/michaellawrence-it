@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.16';
+  const BUILD = '2026-07-26.17';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -18,7 +18,7 @@
      copy is snapshotted first, so a bad migration is recoverable.
   --------------------------------------------------------------------- */
   const KEY = 'ppl-tracker-v1';
-  const SCHEMA = 3;
+  const SCHEMA = 4;
   const SNAPSHOT_PREFIX = 'ppl-tracker-snapshot-v';
   const QUARANTINE_PREFIX = 'ppl-tracker-unreadable-';
   const AUTOBACKUP_KEY = 'ppl-tracker-autobackup';
@@ -82,6 +82,9 @@
         done: !!x.done,
         // when the set was ticked off; null for anything logged before v3
         t: typeof x.t === 'number' ? x.t : null,
+        // right side, for one-side-at-a-time movements; null on bilateral work
+        w2: x.w2 === null || x.w2 === undefined || x.w2 === '' ? null : Number(x.w2),
+        r2: x.r2 === null || x.r2 === undefined || x.r2 === '' ? null : Math.round(Number(x.r2)),
       }));
       e.targetSets = Number(e.targetSets) || e.sets.length;
       e.repMin = Number(e.repMin) || 1;
@@ -95,6 +98,24 @@
 
   /* Keyed by the version they produce. MIGRATIONS[n] turns v(n-1) into v(n). */
   const MIGRATIONS = {
+    /* v4 gives every set a right side. Existing sets were logged as a single
+       figure, so they stay as the left with a null right — they were bilateral
+       or recorded as one number, and inventing a second side would be a lie. */
+    4(d) {
+      const fix = (s) => {
+        if (!s) return;
+        (s.entries || []).forEach((e) => {
+          (e.sets || []).forEach((x) => {
+            if (x.w2 === undefined) x.w2 = null;
+            if (x.r2 === undefined) x.r2 = null;
+          });
+        });
+      };
+      (d.sessions || []).forEach(fix);
+      fix(d.active);
+      return d;
+    },
+
     /* v3 adds per-set completion timestamps and a session start time, which is
        what makes rest timing and duration possible. Nothing existing can be
        reconstructed, so old records get nulls and simply report "—". */
@@ -322,10 +343,27 @@
     return load * (1 + r / 30); // Epley
   }
 
+  const isUni = (exId) => !!exOf(exId).uni;
+
+  /* One number to represent a set for progression and trend. On a one-sided
+     movement that's the WEAKER side: you've only earned the load when both
+     arms clear the target, and a trend driven by your good arm would flatter
+     you. Volume still counts both sides — that work was done. */
+  function setEffort(entry, s) {
+    const left = { w: s.w, r: s.r };
+    if (!isUni(entry.exerciseId) || s.r2 === null || s.r2 === undefined) return left;
+    const right = { w: s.w2, r: s.r2 };
+    if (!s.r) return right;
+    if (!s.r2) return left;
+    return e1rm(entry.exerciseId, left.w, left.r) <= e1rm(entry.exerciseId, right.w, right.r) ? left : right;
+  }
+
   function entryVolume(entry) {
     return entry.sets.reduce((sum, s) => {
-      if (!s.r) return sum;
-      return sum + effectiveWeight(entry.exerciseId, s.w) * s.r;
+      let v = 0;
+      if (s.r) v += effectiveWeight(entry.exerciseId, s.w) * s.r;
+      if (s.r2) v += effectiveWeight(entry.exerciseId, s.w2) * s.r2;
+      return sum + v;
     }, 0);
   }
 
@@ -334,16 +372,17 @@
   }
 
   function workingSets(entry) {
-    return entry.sets.filter((s) => s.r && s.r > 0);
+    return entry.sets.filter((s) => (s.r && s.r > 0) || (s.r2 && s.r2 > 0));
   }
 
+  /* Returns { w, r } — the representative effort, not the raw set. */
   function topSet(entry) {
     const done = workingSets(entry);
     if (!done.length) return null;
-    return done.reduce((best, s) => {
-      const a = e1rm(entry.exerciseId, s.w, s.r);
+    return done.map((s) => setEffort(entry, s)).reduce((best, eff) => {
+      const a = e1rm(entry.exerciseId, eff.w, eff.r);
       const b = best ? e1rm(entry.exerciseId, best.w, best.r) : -1;
-      return a > b ? s : best;
+      return a > b ? eff : best;
     }, null);
   }
 
@@ -378,6 +417,15 @@
     if (typeof session.startedAt !== 'number' || typeof session.ts !== 'number') return null;
     const secs = (session.ts - session.startedAt) / 1000;
     return secs > 0 && secs < 12 * 3600 ? secs : null;
+  }
+
+  /* "17.5×8" bilateral, "17.5×8/7" per side at one weight, "17.5×8 / 20×7"
+     when the sides used different loads. */
+  function fmtSetShort(entry, s) {
+    const two = isUni(entry.exerciseId) && s.r2 !== null && s.r2 !== undefined;
+    if (!two) return `${fmtW(s.w)}×${s.r}`;
+    if (s.w === s.w2) return `${fmtW(s.w)}×${s.r}/${s.r2}`;
+    return `${fmtW(s.w)}×${s.r} / ${fmtW(s.w2)}×${s.r2}`;
   }
 
   function fmtDur(secs) {
@@ -431,9 +479,10 @@
 
       // Same rule the progression suggestion uses: clear the top of the range
       // on every working set and the load goes up next time.
-      const topW = Math.max(...done.map((s) => s.w || 0));
-      const atTop = done.filter((s) => (s.w || 0) === topW);
-      const earned = atTop.length >= e.targetSets && Math.min(...atTop.map((s) => s.r)) >= e.repMax;
+      const efforts = done.map((x) => setEffort(e, x));
+      const topW = Math.max(...efforts.map((x) => x.w || 0));
+      const atTop = efforts.filter((x) => (x.w || 0) === topW);
+      const earned = atTop.length >= e.targetSets && Math.min(...atTop.map((x) => x.r)) >= e.repMax;
 
       out.push({ entry: e, top, pTop, status, earned, pr: wasPR(session, e) });
     });
@@ -526,7 +575,8 @@
     let best = 0;
     historyFor(exId).forEach(({ entry }) => {
       workingSets(entry).forEach((s) => {
-        best = Math.max(best, e1rm(exId, s.w, s.r));
+        const eff = setEffort(entry, s);
+        best = Math.max(best, e1rm(exId, eff.w, eff.r));
       });
     });
     return best;
@@ -541,9 +591,10 @@
     const done = workingSets(prev.entry);
     if (!done.length) return null;
 
-    const top = Math.max(...done.map((s) => s.w || 0));
-    const atTop = done.filter((s) => (s.w || 0) === top);
-    const minReps = Math.min(...atTop.map((s) => s.r));
+    const efforts = done.map((s) => setEffort(prev.entry, s));
+    const top = Math.max(...efforts.map((e) => e.w || 0));
+    const atTop = efforts.filter((e) => (e.w || 0) === top);
+    const minReps = Math.min(...atTop.map((e) => e.r));
     const earned = atTop.length >= prev.entry.targetSets && minReps >= rx.repMax;
 
     const base = earned ? top + incFor(rx.exerciseId) : top;
@@ -554,7 +605,7 @@
       earned,
       lastWeight: top,
       lastDate: prev.session.date,
-      lastSets: done.map((s) => `${fmtW(s.w)}×${s.r}`),
+      lastSets: done.map((s) => fmtSetShort(prev.entry, s)),
     };
   }
 
@@ -584,7 +635,7 @@
         repMax: r.repMax,
         repTarget: r.repTarget,
         load: r.load,
-        sets: Array.from({ length: r.sets }, () => ({ w: null, r: null, done: false, t: null })),
+        sets: Array.from({ length: r.sets }, () => ({ w: null, r: null, w2: null, r2: null, done: false, t: null })),
         note: '',
       })),
     };
@@ -1150,21 +1201,44 @@
 
     const sugW = sug ? sug.weight : null;
 
+    const uni = !!ex.uni;
+    const wPh = sugW !== null ? fmtW(sugW) : (ex.bw ? '0' : '');
+    const tick = (idx) => `<button class="check" data-action="toggle-set" data-slot="${entry.slotId}" data-set="${idx}"
+        aria-label="Mark set ${idx + 1} complete">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+      </button>`;
+
+    const pair = (idx, side, wKey, rKey, wVal, rVal) => `
+      <div class="side">
+        <span class="sl">${side}</span>
+        <input type="number" inputmode="decimal" step="any" data-field="${wKey}" data-slot="${entry.slotId}" data-set="${idx}"
+               value="${wVal === null ? '' : wVal}" placeholder="${wPh}"
+               aria-label="Set ${idx + 1} ${side === 'L' ? 'left' : 'right'} weight">
+        <input type="number" inputmode="numeric" step="1" data-field="${rKey}" data-slot="${entry.slotId}" data-set="${idx}"
+               value="${rVal === null ? '' : rVal}" placeholder="${entry.repTarget}"
+               aria-label="Set ${idx + 1} ${side === 'L' ? 'left' : 'right'} reps">
+      </div>`;
+
     const rows = entry.sets
-      .map(
-        (s, idx) => `<div class="set-row${s.done ? ' done' : ''}" data-slot="${entry.slotId}" data-set="${idx}">
-          <div class="n">${idx + 1}</div>
-          <input type="number" inputmode="decimal" step="any" data-field="w" data-slot="${entry.slotId}" data-set="${idx}"
-                 value="${s.w === null ? '' : s.w}" placeholder="${sugW !== null ? fmtW(sugW) : (ex.bw ? '0' : '')}"
-                 aria-label="Set ${idx + 1} weight">
-          <input type="number" inputmode="numeric" step="1" data-field="r" data-slot="${entry.slotId}" data-set="${idx}"
-                 value="${s.r === null ? '' : s.r}" placeholder="${entry.repTarget}"
-                 aria-label="Set ${idx + 1} reps">
-          <button class="check" data-action="toggle-set" data-slot="${entry.slotId}" data-set="${idx}" aria-label="Mark set ${idx + 1} complete">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
-          </button>
-        </div>`
-      )
+      .map((s, idx) => (uni
+        ? `<div class="set-row uni${s.done ? ' done' : ''}" data-slot="${entry.slotId}" data-set="${idx}">
+             <div class="n">${idx + 1}</div>
+             <div class="sides">
+               ${pair(idx, 'L', 'w', 'r', s.w, s.r)}
+               ${pair(idx, 'R', 'w2', 'r2', s.w2, s.r2)}
+             </div>
+             ${tick(idx)}
+           </div>`
+        : `<div class="set-row${s.done ? ' done' : ''}" data-slot="${entry.slotId}" data-set="${idx}">
+             <div class="n">${idx + 1}</div>
+             <input type="number" inputmode="decimal" step="any" data-field="w" data-slot="${entry.slotId}" data-set="${idx}"
+                    value="${s.w === null ? '' : s.w}" placeholder="${wPh}"
+                    aria-label="Set ${idx + 1} weight">
+             <input type="number" inputmode="numeric" step="1" data-field="r" data-slot="${entry.slotId}" data-set="${idx}"
+                    value="${s.r === null ? '' : s.r}" placeholder="${entry.repTarget}"
+                    aria-label="Set ${idx + 1} reps">
+             ${tick(idx)}
+           </div>`))
       .join('');
 
     return `<section class="card ex-card" data-ex="${entry.slotId}">
@@ -1180,7 +1254,8 @@
       </header>
 
       <div class="set-list">
-        <div class="set-head"><span>#</span><span>${esc(ex.bw ? 'added ' + unitLabel() : unitLabel())}</span><span>reps</span><span></span></div>
+        <div class="set-head${uni ? ' uni' : ''}"><span>#</span>${uni ? '<span></span>' : ''}<span>${
+          esc(ex.bw ? 'added ' + unitLabel() : unitLabel())}</span><span>reps</span><span></span></div>
         ${rows}
       </div>
       ${prevLine}
@@ -1357,7 +1432,7 @@
       html += `<tr>
         <td>${esc(exOf(e.exerciseId).name)}${wasPR(s, e) ? ' <span class="pill pr">PR</span>' : ''}${
           e.note ? `<div class="small muted">${esc(e.note)}</div>` : ''}</td>
-        <td>${done.map((x) => `${fmtW(x.w)}×${x.r}`).join('<br>')}</td>
+        <td>${done.map((x) => esc(fmtSetShort(e, x))).join('<br>')}</td>
         <td>${top ? `${fmtW(top.w)} × ${top.r}` : '—'}</td>
         <td>${fmtInt(vol)}</td>
         <td class="delta ${d === null ? 'flat' : d > 0 ? 'up' : d < 0 ? 'down' : 'flat'}">${d === null ? '—' : (d > 0 ? '+' : '') + d + '%'}</td>
@@ -1467,7 +1542,7 @@
         const d = pv ? Math.round(((vol - pv) / pv) * 100) : null;
         html += `<tr>
           <td>${esc(fmtDate(session.date))}</td>
-          <td>${workingSets(entry).map((x) => `${fmtW(x.w)}×${x.r}`).join(', ')}</td>
+          <td>${workingSets(entry).map((x) => esc(fmtSetShort(entry, x))).join(', ')}</td>
           <td>${fmtW(top.w)} × ${top.r}</td>
           <td>${fmtInt(e1rm(entry.exerciseId, top.w, top.r))}</td>
           <td>${fmtInt(vol)}</td>
@@ -1639,11 +1714,15 @@
 
       if (!set.done) {
         // Adopt the suggested numbers if the lifter just taps through.
-        const wInput = $(`input[data-field="w"][data-slot="${slotId}"][data-set="${idx}"]`);
-        const rInput = $(`input[data-field="r"][data-slot="${slotId}"][data-set="${idx}"]`);
-        if (set.w === null && wInput && wInput.placeholder !== '') { set.w = num(wInput.placeholder); wInput.value = set.w; }
-        if (set.r === null && rInput && rInput.placeholder !== '') { set.r = num(rInput.placeholder); rInput.value = set.r; }
-        if (set.r === null) { toast('Enter reps first'); return; }
+        const adopt = (field) => {
+          const input = $(`input[data-field="${field}"][data-slot="${slotId}"][data-set="${idx}"]`);
+          if (!input || set[field] !== null || input.placeholder === '') return;
+          set[field] = num(input.placeholder);
+          input.value = set[field];
+        };
+        const uni = isUni(entry.exerciseId);
+        ['w', 'r'].concat(uni ? ['w2', 'r2'] : []).forEach(adopt);
+        if (!set.r && !set.r2) { toast('Enter reps first'); return; }
         set.done = true;
         set.t = Date.now();
         startRest(Number(state.restSeconds) || 120);
@@ -1660,9 +1739,14 @@
       const entry = findEntry(slotId);
       if (!entry) return;
       const sug = suggestFor({ exerciseId: entry.exerciseId, repMax: entry.repMax, load: entry.load });
+      const uni = isUni(entry.exerciseId);
       entry.sets.forEach((s) => {
         if (s.w === null && sug) s.w = sug.weight;
         if (s.r === null) s.r = entry.repTarget;
+        if (uni) {
+          if (s.w2 === null && sug) s.w2 = sug.weight;
+          if (s.r2 === null) s.r2 = entry.repTarget;
+        }
       });
       save();
       render();
@@ -1671,7 +1755,7 @@
     'add-set'(slotId) {
       const entry = findEntry(slotId);
       if (!entry) return;
-      entry.sets.push({ w: null, r: null, done: false, t: null });
+      entry.sets.push({ w: null, r: null, w2: null, r2: null, done: false, t: null });
       save();
       render();
     },
@@ -1700,7 +1784,7 @@
       if (!confirm(`Finish and save this ${PROGRAM[s.day].name} session? (${logged} sets)`)) return;
 
       // Drop empty sets so history stays honest.
-      s.entries.forEach((e) => { e.sets = e.sets.filter((x) => x.r && x.r > 0); });
+      s.entries.forEach((e) => { e.sets = e.sets.filter((x) => (x.r && x.r > 0) || (x.r2 && x.r2 > 0)); });
       s.entries = s.entries.filter((e) => e.sets.length);
       s.ts = Date.now();
       state.sessions.push(s);
@@ -1823,17 +1907,25 @@
     },
 
     'export-csv'() {
-      const rows = [['date', 'day', 'week', 'phase', 'movement', 'set', 'weight', 'unit', 'reps', 'est_1rm', 'note']];
+      const rows = [['date', 'day', 'week', 'phase', 'movement', 'set', 'side', 'weight', 'unit', 'reps', 'est_1rm', 'note']];
       sortedSessions().slice().reverse().forEach((s) => {
         s.entries.forEach((e) => {
+          const uni = isUni(e.exerciseId);
           e.sets.forEach((set, i) => {
-            if (!set.r) return;
-            rows.push([
-              s.date, PROGRAM[s.day].name, s.week + 1, s.phase,
-              exOf(e.exerciseId).name,
-              i + 1, set.w === null ? '' : set.w, state.unit, set.r,
-              Math.round(e1rm(e.exerciseId, set.w, set.r)), e.note || '',
-            ]);
+            // One row per side on a one-sided movement, so each arm can be
+            // filtered and charted on its own.
+            const sides = uni
+              ? [['L', set.w, set.r], ['R', set.w2, set.r2]]
+              : [['', set.w, set.r]];
+            sides.forEach(([side, w, r]) => {
+              if (!r) return;
+              rows.push([
+                s.date, PROGRAM[s.day].name, s.week + 1, s.phase,
+                exOf(e.exerciseId).name,
+                i + 1, side, w === null ? '' : w, state.unit, r,
+                Math.round(e1rm(e.exerciseId, w, r)), e.note || '',
+              ]);
+            });
           });
         });
       });
@@ -1875,12 +1967,12 @@
   function onFieldInput(el) {
     const f = el.dataset.field;
 
-    if (f === 'w' || f === 'r') {
+    if (f === 'w' || f === 'r' || f === 'w2' || f === 'r2') {
       const entry = findEntry(el.dataset.slot);
       if (!entry) return;
       const set = entry.sets[Number(el.dataset.set)];
       const v = num(el.value);
-      set[f] = f === 'r' && v !== null ? Math.round(v) : v;
+      set[f] = (f === 'r' || f === 'r2') && v !== null ? Math.round(v) : v;
       refreshVol(el.dataset.slot);
       save();
       return;
@@ -1915,7 +2007,7 @@
 
       // Keep every set already logged; only empty rows are added or dropped.
       const kept = entry.sets.filter((s) => s.r && s.r > 0);
-      while (kept.length < rx.sets) kept.push({ w: null, r: null, done: false, t: null });
+      while (kept.length < rx.sets) kept.push({ w: null, r: null, w2: null, r2: null, done: false, t: null });
       entry.sets = kept;
 
       save();

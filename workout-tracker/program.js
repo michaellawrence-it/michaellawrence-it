@@ -6,6 +6,8 @@
    kind: barbell | dumbbell | machine | cable | bodyweight
    inc:  smallest sensible load jump, in lb (converted for kg)
    bw:   true when the logged weight is *added* load on top of bodyweight
+   uni:  true when it's worked one side at a time, so every set records a
+         left and a right independently — the arms rarely match
 --------------------------------------------------------------------------- */
 const EXERCISES = {
   // --- Push ---------------------------------------------------------------
@@ -59,21 +61,21 @@ const EXERCISES = {
   // Supinated, both arms — the unqualified 'dumbbell curl'. The hammer
   // curls below are the neutral-grip version.
   db_curl:         { name: 'Dumbbell Curl',            kind: 'dumbbell',   inc: 5 },
-  db_curl_alt:     { name: 'Alternating Dumbbell Curl', kind: 'dumbbell',  inc: 5 },
+  db_curl_alt:     { name: 'Alternating Dumbbell Curl', kind: 'dumbbell',  inc: 5, uni: true },
   ez_curl:         { name: 'EZ-Bar Curl',              kind: 'barbell',    inc: 5 },
   db_hammer:       { name: 'Dumbbell Hammer Curl',     kind: 'dumbbell',   inc: 5 },
-  db_hammer_alt:   { name: 'Alternating Hammer Curl',  kind: 'dumbbell',   inc: 5 },
+  db_hammer_alt:   { name: 'Alternating Hammer Curl',  kind: 'dumbbell',   inc: 5, uni: true },
   rope_hammer:     { name: 'Rope Hammer Curl',         kind: 'cable',      inc: 5 },
   incline_db_curl: { name: 'Incline Dumbbell Curl',    kind: 'dumbbell',   inc: 5 },
-  db_row_1arm:     { name: 'One-Arm Dumbbell Row',     kind: 'dumbbell',   inc: 5 },
-  db_row_alt:      { name: 'Alternating Dumbbell Row', kind: 'dumbbell',   inc: 5 },
+  db_row_1arm:     { name: 'One-Arm Dumbbell Row',     kind: 'dumbbell',   inc: 5, uni: true },
+  db_row_alt:      { name: 'Alternating Dumbbell Row', kind: 'dumbbell',   inc: 5, uni: true },
   tbar_row:        { name: 'T-Bar Row',                kind: 'barbell',    inc: 10 },
   straight_arm_pd: { name: 'Straight-Arm Pulldown',    kind: 'cable',      inc: 5 },
   bb_shrug:        { name: 'Barbell Shrug',            kind: 'barbell',    inc: 10 },
   db_shrug:        { name: 'Dumbbell Shrug',           kind: 'dumbbell',   inc: 5 },
   preacher_curl:   { name: 'Preacher Curl',            kind: 'barbell',    inc: 5 },
   cable_curl:      { name: 'Cable Curl',               kind: 'cable',      inc: 5 },
-  conc_curl:       { name: 'Concentration Curl',       kind: 'dumbbell',   inc: 5 },
+  conc_curl:       { name: 'Concentration Curl',       kind: 'dumbbell',   inc: 5, uni: true },
   reverse_curl:    { name: 'Reverse Curl',             kind: 'barbell',    inc: 5 },
 
   // --- Legs ---------------------------------------------------------------
@@ -84,7 +86,7 @@ const EXERCISES = {
   seated_leg_curl: { name: 'Seated Leg Curl',          kind: 'machine',    inc: 5 },
   adductor:        { name: 'Hip Adductor Machine',     kind: 'machine',    inc: 5 },
   abductor:        { name: 'Hip Abductor Machine',     kind: 'machine',    inc: 5 },
-  cable_abduction: { name: 'Cable Hip Abduction',      kind: 'cable',      inc: 5 },
+  cable_abduction: { name: 'Cable Hip Abduction',      kind: 'cable',      inc: 5, uni: true },
   standing_calf:   { name: 'Standing Calf Raise',      kind: 'machine',    inc: 10 },
   seated_calf:     { name: 'Seated Calf Raise',        kind: 'machine',    inc: 5 },
   press_calf:      { name: 'Leg-Press Calf Raise',     kind: 'machine',    inc: 10 },
@@ -93,9 +95,9 @@ const EXERCISES = {
   captains_chair:  { name: "Captain's Chair Knee Raise", kind:'bodyweight',inc: 5, bw: true },
   front_squat:     { name: 'Front Squat',              kind: 'barbell',    inc: 10 },
   goblet_squat:    { name: 'Goblet Squat',             kind: 'dumbbell',   inc: 5 },
-  bulgarian_split: { name: 'Bulgarian Split Squat',    kind: 'dumbbell',   inc: 5 },
-  walking_lunge:   { name: 'Walking Lunge',            kind: 'dumbbell',   inc: 5 },
-  step_up:         { name: 'Dumbbell Step-Up',         kind: 'dumbbell',   inc: 5 },
+  bulgarian_split: { name: 'Bulgarian Split Squat',    kind: 'dumbbell',   inc: 5, uni: true },
+  walking_lunge:   { name: 'Walking Lunge',            kind: 'dumbbell',   inc: 5, uni: true },
+  step_up:         { name: 'Dumbbell Step-Up',         kind: 'dumbbell',   inc: 5, uni: true },
   leg_ext:         { name: 'Leg Extension',            kind: 'machine',    inc: 5 },
   rdl:             { name: 'Romanian Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
   db_rdl:          { name: 'Romanian Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
