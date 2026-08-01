@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.15';
+  const BUILD = '2026-07-26.16';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -406,6 +406,81 @@
       });
     });
     return cur > before + 0.01;
+  }
+
+  /* How each movement went against the last time this day was trained.
+     Judged on estimated 1RM of the top set, so heavier-for-fewer and
+     lighter-for-more are compared on the same footing rather than by raw
+     weight. */
+  function movementOutcomes(session) {
+    const prior = sortedSessions().filter((x) => x.day === session.day && x.ts < session.ts)[0] || null;
+    const out = [];
+
+    session.entries.forEach((e) => {
+      const done = workingSets(e);
+      if (!done.length) return;
+
+      const top = topSet(e);
+      const cur = e1rm(e.exerciseId, top.w, top.r);
+      const pe = prior ? prior.entries.find((x) => x.exerciseId === e.exerciseId) : null;
+      const pTop = pe ? topSet(pe) : null;
+      const prev = pTop ? e1rm(pe.exerciseId, pTop.w, pTop.r) : null;
+
+      let status = 'new';
+      if (prev) status = cur > prev + 0.5 ? 'up' : cur < prev - 0.5 ? 'down' : 'same';
+
+      // Same rule the progression suggestion uses: clear the top of the range
+      // on every working set and the load goes up next time.
+      const topW = Math.max(...done.map((s) => s.w || 0));
+      const atTop = done.filter((s) => (s.w || 0) === topW);
+      const earned = atTop.length >= e.targetSets && Math.min(...atTop.map((s) => s.r)) >= e.repMax;
+
+      out.push({ entry: e, top, pTop, status, earned, pr: wasPR(session, e) });
+    });
+
+    return { prior, out };
+  }
+
+  function sessionVerdict(session) {
+    const { prior, out } = movementOutcomes(session);
+    if (!out.length) return null;
+
+    const up = out.filter((o) => o.status === 'up').length;
+    const down = out.filter((o) => o.status === 'down').length;
+    const prs = out.filter((o) => o.pr);
+    const earned = out.filter((o) => o.earned);
+
+    let headline, tone;
+    if (!prior) {
+      headline = 'Baseline set';
+      tone = 'neutral';
+    } else if (up && up >= down * 2) {
+      headline = 'Strong session';
+      tone = 'good';
+    } else if (up > down) {
+      headline = 'Moved forward';
+      tone = 'good';
+    } else if (up === down) {
+      headline = 'Held the line';
+      tone = 'neutral';
+    } else {
+      headline = 'Down on last time';
+      tone = 'bad';
+    }
+
+    const n = out.length;
+    const bits = [];
+    if (!prior) {
+      bits.push(`${n} movement${n === 1 ? '' : 's'} logged — nothing to compare yet`);
+    } else if (!up && !down) {
+      bits.push(`matched your last ${PROGRAM[session.day].name} on every movement`);
+    } else {
+      if (up) bits.push(`up on ${up} of ${n}`);
+      if (down) bits.push(`${down} of ${n} down`);
+    }
+    if (prs.length) bits.push(`${prs.length} PR${prs.length === 1 ? '' : 's'}`);
+
+    return { headline, tone, sub: bits.join(' · '), prs, earned, out, prior };
   }
 
   /* Sessions, newest first. */
@@ -1222,12 +1297,32 @@
     const rest = restStats(s);
     const dur = sessionDuration(s);
     const sets = s.entries.reduce((n, e) => n + workingSets(e).length, 0);
-    const prs = s.entries.filter((e) => workingSets(e).length && wasPR(s, e));
+
+    const verdict = sessionVerdict(s);
 
     let html = `<div class="card small row" style="gap:9px">${phasePill(ph)}
       <span class="muted">${esc(PROGRAM[s.day].name)} · ${sets} sets${
         prior ? ` · last done ${esc(relDate(prior.date))}` : ' · first time logged'
       }</span></div>`;
+
+    if (verdict) {
+      html += `<div class="verdict ${verdict.tone}">
+        <div class="v-head">${esc(verdict.headline)}</div>
+        <div class="v-sub">${esc(verdict.sub)}</div>
+        ${verdict.out.map((o) => {
+          const mark = { up: '↑', down: '↓', same: '=', new: '·' }[o.status];
+          const was = o.pTop ? `was ${fmtW(o.pTop.w)}×${o.pTop.r}` : 'first time';
+          return `<div class="v-row ${o.status}">
+            <span class="v-mark">${mark}</span>
+            <span class="v-name">${esc(exOf(o.entry.exerciseId).name)}${o.pr ? ' <span class="pill pr">PR</span>' : ''}</span>
+            <span class="v-num">${fmtW(o.top.w)}×${o.top.r}<span class="v-was">${esc(was)}</span></span>
+          </div>`;
+        }).join('')}
+        ${verdict.earned.length ? `<div class="v-earned">
+          Earned a load increase next time on <b>${verdict.earned.map((o) => esc(exOf(o.entry.exerciseId).name)).join(', ')}</b>
+        </div>` : ''}
+      </div>`;
+    }
 
     html += `<div class="stat-row" style="margin-bottom:12px">
       <div class="stat"><div class="k">Volume</div><div class="v">${fmtInt(sessionVolume(s))}${
@@ -1247,16 +1342,6 @@
         Rest timing needs sets ticked off with the checkmark — this session predates it.</div>`;
     }
 
-    if (prs.length) {
-      html += `<div class="card" style="border-color:color-mix(in srgb, var(--warn) 45%, transparent)">
-        <div class="row" style="gap:8px;flex-wrap:wrap">
-          <span class="pill pr">PR</span>
-          <span class="small">${prs.map((e) => {
-            const t = topSet(e);
-            return `${esc(exOf(e.exerciseId).name)} <b>${fmtW(t.w)}×${t.r}</b>`;
-          }).join(' &nbsp;·&nbsp; ')}</span>
-        </div></div>`;
-    }
 
     html += `<div class="card"><div class="scroll-x"><table class="data">
       <thead><tr><th>Movement</th><th>Sets</th><th>Top set</th><th>Volume</th><th>Δ</th></tr></thead><tbody>`;
