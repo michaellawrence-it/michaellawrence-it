@@ -68,6 +68,12 @@
         <span class="key"><i class="dot dot-dinner" aria-hidden="true"></i>Dinner <b id="legDinner">0</b> <span class="of">of <span id="legReserve">900</span> reserved</span></span>
       </div>
 
+      <div class="protein-row">
+        <span class="protein-label">Protein</span>
+        <span class="protein-bar" aria-hidden="true"><span class="protein-fill" id="protFill"></span></span>
+        <span class="protein-nums"><b id="protNow">0</b> <span id="protGoalTxt">of 140 g</span></span>
+      </div>
+
       <p class="status" id="statusLine"><span class="status-ico ico-good">✓</span><span>Dinner is fully funded.</span></p>
     </section>
 
@@ -97,11 +103,11 @@
       </div>
 
       <div class="chip-row" role="group" aria-label="Other dinner ideas">
-        <button class="chip" data-action="quick-dinner" data-name="Burger &amp; fries" data-kcal="1100">🍔 Burger &amp; fries <i>1,100</i></button>
-        <button class="chip" data-action="quick-dinner" data-name="Burrito bowl" data-kcal="950">🌯 Burrito bowl <i>950</i></button>
-        <button class="chip" data-action="quick-dinner" data-name="Curry &amp; rice" data-kcal="900">🍛 Curry &amp; rice <i>900</i></button>
-        <button class="chip" data-action="quick-dinner" data-name="Pasta night" data-kcal="800">🍝 Pasta night <i>800</i></button>
-        <button class="chip" data-action="quick-dinner" data-name="Tacos ×3" data-kcal="700">🌮 Tacos ×3 <i>700</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Burger &amp; fries" data-kcal="1100" data-p="35">🍔 Burger &amp; fries <i>1,100</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Burrito bowl" data-kcal="950" data-p="42">🌯 Burrito bowl <i>950</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Curry &amp; rice" data-kcal="900" data-p="28">🍛 Curry &amp; rice <i>900</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Pasta night" data-kcal="800" data-p="26">🍝 Pasta night <i>800</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Tacos ×3" data-kcal="700" data-p="30">🌮 Tacos ×3 <i>700</i></button>
       </div>
 
       <p class="fineprint">Slice math assumes ≈ 285 kcal for a large cheese slice. All foods are estimates — tweak any entry after logging.</p>
@@ -119,25 +125,48 @@
       </div>
 
       <div class="chip-row">
-        <button class="chip" data-action="quick" data-name="Coffee w/ milk" data-kcal="30">☕ Coffee w/ milk <i>30</i></button>
-        <button class="chip" data-action="quick" data-name="Eggs &amp; toast" data-kcal="320">🍳 Eggs &amp; toast <i>320</i></button>
-        <button class="chip" data-action="quick" data-name="Oatmeal &amp; berries" data-kcal="300">🥣 Oatmeal &amp; berries <i>300</i></button>
-        <button class="chip" data-action="quick" data-name="Greek yogurt" data-kcal="120">🥛 Greek yogurt <i>120</i></button>
-        <button class="chip" data-action="quick" data-name="Banana" data-kcal="105">🍌 Banana <i>105</i></button>
-        <button class="chip" data-action="quick" data-name="Apple" data-kcal="95">🍎 Apple <i>95</i></button>
-        <button class="chip" data-action="quick" data-name="Turkey sandwich" data-kcal="450">🥪 Turkey sandwich <i>450</i></button>
-        <button class="chip" data-action="quick" data-name="Chicken salad" data-kcal="400">🥗 Chicken salad <i>400</i></button>
-        <button class="chip" data-action="quick" data-name="Soup cup" data-kcal="220">🍜 Soup cup <i>220</i></button>
-        <button class="chip" data-action="quick" data-name="Protein bar" data-kcal="200">🍫 Protein bar <i>200</i></button>
-        <button class="chip" data-action="quick" data-name="Handful of nuts" data-kcal="170">🥜 Nuts <i>170</i></button>
-        <button class="chip" data-action="quick" data-name="Smoothie" data-kcal="250">🥤 Smoothie <i>250</i></button>
+        <button class="chip" data-action="quick" data-name="Coffee w/ milk" data-kcal="30" data-p="1">☕ Coffee w/ milk <i>30</i></button>
+        <button class="chip" data-action="quick" data-name="Eggs &amp; toast" data-kcal="320" data-p="16">🍳 Eggs &amp; toast <i>320</i></button>
+        <button class="chip" data-action="quick" data-name="Oatmeal &amp; berries" data-kcal="300" data-p="8">🥣 Oatmeal &amp; berries <i>300</i></button>
+        <button class="chip" data-action="quick" data-name="Greek yogurt" data-kcal="120" data-p="15">🥛 Greek yogurt <i>120</i></button>
+        <button class="chip" data-action="quick" data-name="Banana" data-kcal="105" data-p="1">🍌 Banana <i>105</i></button>
+        <button class="chip" data-action="quick" data-name="Apple" data-kcal="95" data-p="0">🍎 Apple <i>95</i></button>
+        <button class="chip" data-action="quick" data-name="Turkey sandwich" data-kcal="450" data-p="28">🥪 Turkey sandwich <i>450</i></button>
+        <button class="chip" data-action="quick" data-name="Chicken salad" data-kcal="400" data-p="35">🥗 Chicken salad <i>400</i></button>
+        <button class="chip" data-action="quick" data-name="Soup cup" data-kcal="220" data-p="8">🍜 Soup cup <i>220</i></button>
+        <button class="chip" data-action="quick" data-name="Protein bar" data-kcal="200" data-p="20">🍫 Protein bar <i>200</i></button>
+        <button class="chip" data-action="quick" data-name="Handful of nuts" data-kcal="170" data-p="6">🥜 Nuts <i>170</i></button>
+        <button class="chip" data-action="quick" data-name="Smoothie" data-kcal="250" data-p="8">🥤 Smoothie <i>250</i></button>
       </div>
 
       <form class="custom-form" id="customForm" autocomplete="off">
-        <input type="text" id="custName" placeholder="Something else…" maxlength="60" aria-label="Food name">
+        <input type="text" id="custName" class="span-all" placeholder="Something else…" maxlength="60" aria-label="Food name">
         <input type="number" id="custKcal" placeholder="kcal" min="1" max="5000" inputmode="numeric" required aria-label="Calories">
+        <input type="number" id="custProt" placeholder="protein (g)" min="0" max="400" inputmode="numeric" aria-label="Protein in grams, optional">
         <button class="btn btn-primary" type="submit">Add</button>
       </form>
+    </section>
+
+    <!-- ============ Recipes ============ -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Recipes</h2>
+        <span class="head-num"><span aria-hidden="true">💪</span> = protein-dense</span>
+      </div>
+
+      <div class="chip-row rcat-row" role="group" aria-label="Recipe category">
+        <button class="chip is-on" data-action="rcat" data-cat="All">All</button>
+        <button class="chip" data-action="rcat" data-cat="basics">Basics</button>
+        <button class="chip" data-action="rcat" data-cat="cod">Cod</button>
+        <button class="chip" data-action="rcat" data-cat="salmon">Salmon</button>
+        <button class="chip" data-action="rcat" data-cat="thigh">Chicken thigh</button>
+        <button class="chip" data-action="rcat" data-cat="steak">Steak</button>
+        <button class="chip" data-action="rcat" data-cat="rice">Rice bowls</button>
+      </div>
+
+      <div id="recipeList"></div>
+
+      <p class="fineprint">Per single serving, rounded. Log with the meal selected up in “Log food” — dinners land in the fund automatically when Dinner is picked.</p>
     </section>
 
     <!-- ============ Today's entries ============ -->
@@ -176,7 +205,7 @@
       <details class="week-table-wrap">
         <summary>This week as numbers</summary>
         <table class="week-table">
-          <thead><tr><th scope="col">Day</th><th scope="col">Total</th><th scope="col">Dinner</th><th scope="col">vs target</th></tr></thead>
+          <thead><tr><th scope="col">Day</th><th scope="col">Total</th><th scope="col">Dinner</th><th scope="col">Protein</th><th scope="col">vs target</th></tr></thead>
           <tbody id="weekTableBody"></tbody>
         </table>
       </details>
@@ -203,6 +232,10 @@
       <label class="field">
         <span>Default dinner reserve</span>
         <input type="number" id="setReserve" min="0" max="3000" step="50" inputmode="numeric">
+      </label>
+      <label class="field">
+        <span>Daily protein goal (g)</span>
+        <input type="number" id="setProtein" min="40" max="400" step="5" inputmode="numeric">
       </label>
       <p class="fineprint" id="targetNote" hidden><span aria-hidden="true">⚠️</span> That's a very low target. Most adults shouldn't go under ~1,200 kcal without a clinician's guidance.</p>
 

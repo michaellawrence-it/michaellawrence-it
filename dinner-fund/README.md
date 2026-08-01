@@ -10,6 +10,8 @@ Most calorie apps hand you one big daily number, you spend it as the day goes, a
 - **Log your day** with quick-pick foods or custom entries. The headline number is *"left before dinner"* — your day budget with dinner already paid for.
 - **Watch the meter.** Blue is what you've eaten, the 🍕 line marks where the dinner fund starts. Cross the line and the app tells you exactly what tonight's budget shrinks to — in calories *and* pizza slices (≈285 kcal per large slice).
 - **Log the dinner.** A slice stepper for pizza nights, presets for burger/burrito/pasta nights, and an honest end-of-day verdict. Under target with a cheat dinner included is the whole point. 🎉
+- **Cook from the built-in recipes.** 22 preloaded high-protein recipes — basics (eggs, oats, yogurt bowls, tuna salad) plus cod, salmon, chicken thigh, steak, and rice bowls — each with ingredients, a 2–3 step method, calories, and protein. Filter by category, expand for the method, log with one tap. Recipes where 35%+ of calories come from protein wear a 💪 badge.
+- **Build protein, not just a deficit.** Every food carries protein grams, a slim green bar under the calorie meter tracks your daily protein goal (default 140 g, adjustable), and the week table shows protein per day. Cheat dinner at night, muscle-conscious all day.
 - **Keep the week honest.** A 7-day chart with your target line, an on-target streak, and a "dinners that fit" count. Missed days and over days are shown, never shamed.
 
 A per-night override lets you grow or shrink tonight's reserve (±50) without touching your defaults — big pizza Friday, lighter Sunday.
@@ -34,7 +36,7 @@ All data stays in your browser's `localStorage`. Settings has export/import (JSO
 |---|---|
 | `index.html` | Markup: hero meter, dinner card, food log, week view, settings dialog |
 | `styles.css` | Design tokens (light + dark mode), mobile-first layout |
-| `app.js` | State, budget math, rendering, undo, import/export |
+| `app.js` | State, budget math, recipe library, rendering, undo, import/export |
 | `sw.js` + `manifest.webmanifest` | Offline support + installability |
 | `icons/` | App icon (SVG source + generated PNGs) |
 

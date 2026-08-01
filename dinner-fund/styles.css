@@ -16,6 +16,7 @@
   --day-track: #cde2fb;
   --dinner: #eb6834;
   --dinner-track: #f7d9c6;
+  --protein: #1baf7a;
 
   /* status (reserved, never used as series) */
   --good: #0ca30c;
@@ -42,6 +43,7 @@
     --day-track: #14345c;
     --dinner: #d95926;
     --dinner-track: #4d2310;
+    --protein: #199e70;
     --good-text: #0ca30c;
     --shadow: none;
   }
@@ -257,6 +259,33 @@ body {
 .dot-over { background: var(--serious); }
 .dash { width: 12px; height: 0; border-top: 1px solid var(--baseline); }
 
+/* protein: the second measure, kept quiet under the calorie meter */
+
+.protein-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 11px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.protein-label { flex: none; }
+.protein-nums { flex: none; white-space: nowrap; }
+.protein-nums b { color: var(--ink); font-weight: 650; }
+.protein-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline);
+  overflow: hidden;
+}
+.protein-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--protein);
+}
+
 /* status line: icon + label, never color alone */
 
 .status {
@@ -362,6 +391,9 @@ body {
 }
 .chip:active { transform: scale(0.97); }
 .chip i { font-style: normal; color: var(--muted); font-weight: 500; margin-left: 3px; }
+.chip.is-on { background: var(--ink); color: var(--card); box-shadow: none; }
+.chip.is-on i { color: inherit; opacity: 0.7; }
+.btn-sm { padding: 9px 14px; font-size: 13.5px; border-radius: 10px; }
 
 .linklike {
   border: 0;
@@ -400,10 +432,11 @@ body {
 
 .custom-form {
   display: grid;
-  grid-template-columns: 1fr 86px auto;
+  grid-template-columns: 1fr 1fr auto;
   gap: 8px;
   margin-top: 12px;
 }
+.custom-form .span-all { grid-column: 1 / -1; }
 .custom-form input {
   border: 0;
   border-radius: 11px;
@@ -433,7 +466,8 @@ body {
 .e-emoji { flex: none; width: 24px; text-align: center; }
 .e-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; }
 .e-time { color: var(--muted); font-size: 12px; flex: none; }
-.e-kcal { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; flex: none; width: 52px; text-align: right; }
+.e-kcal { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; flex: none; width: 52px; text-align: right; line-height: 1.15; }
+.e-kcal small { display: block; font-size: 10.5px; font-weight: 500; color: var(--muted); }
 .e-del {
   flex: none;
   border: 0;
@@ -446,6 +480,49 @@ body {
   border-radius: 8px;
 }
 .e-del:hover { background: var(--hairline); color: var(--critical); }
+
+/* ---------- recipes ---------- */
+
+.rcat-row { margin-bottom: 6px; }
+details.recipe { border-bottom: 1px solid var(--hairline); }
+details.recipe:last-child { border-bottom: 0; }
+.recipe summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.recipe summary::-webkit-details-marker { display: none; }
+.r-emoji { flex: none; width: 24px; text-align: center; }
+.r-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 550; }
+.r-dense { font-size: 12px; }
+.r-macros {
+  flex: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.r-add {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--page);
+  box-shadow: inset 0 0 0 1px var(--ring);
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.r-add:active { transform: scale(0.95); }
+.r-body { padding: 2px 0 13px 34px; font-size: 13.5px; color: var(--ink-2); }
+.r-ing { margin: 0 0 7px; }
+.r-steps { margin: 0 0 11px; padding-left: 18px; }
+.r-steps li { margin: 3px 0; }
 
 /* ---------- week ---------- */
 
