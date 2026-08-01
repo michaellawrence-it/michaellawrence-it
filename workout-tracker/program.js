@@ -28,7 +28,8 @@ const EXERCISES = {
   ez_skullcrusher: { name: 'EZ-Bar Skullcrusher',      kind: 'barbell',    inc: 5 },
 
   // --- Pull ---------------------------------------------------------------
-  deadlift:        { name: 'Deadlift',                 kind: 'barbell',    inc: 10 },
+  deadlift:        { name: 'Barbell Deadlift',         kind: 'barbell',    inc: 10 },
+  db_deadlift:     { name: 'Dumbbell Deadlift',        kind: 'dumbbell',   inc: 5 },
   pullup:          { name: 'Pull-ups (pronated)',      kind: 'bodyweight', inc: 5, bw: true },
   chinup:          { name: 'Chin-ups (supinated)',     kind: 'bodyweight', inc: 5, bw: true },
   neutral_pullup:  { name: 'Neutral-Grip Pull-ups',    kind: 'bodyweight', inc: 5, bw: true },
@@ -143,7 +144,7 @@ const DAY_POOL = {
     { group: 'Triceps',   sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown'] },
   ],
   pull: [
-    { group: 'Pulls',     sets: 3, reps: [6, 10],  ids: ['deadlift', 'pullup', 'neutral_pullup', 'chinup', 'bb_row', 'lat_pulldown', 'close_pulldown', 'low_row', 'chest_supp_row'] },
+    { group: 'Pulls',     sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift', 'pullup', 'neutral_pullup', 'chinup', 'bb_row', 'lat_pulldown', 'close_pulldown', 'low_row', 'chest_supp_row'] },
     { group: 'Rear delts', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly'] },
     { group: 'Biceps',    sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_hammer', 'rope_hammer', 'incline_db_curl'] },
   ],

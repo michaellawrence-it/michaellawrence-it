@@ -16,7 +16,7 @@ The three sessions are the ones you already run:
 
 | Push | Pull | Legs |
 |---|---|---|
-| Incline Press — 4×5–8 | Deadlift — 3–4×4–6 | Squats — 4×5–8 |
+| Incline Press — 4×5–8 | Barbell Deadlift — 3–4×4–6 | Squats — 4×5–8 |
 | Flat Bench Press — 3×8–10 | Pull-ups — 3–4 sets | Leg Press — 3×8–10 |
 | Dips — 3×8–10 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
 | Overhead Press — 3×6–8 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
@@ -58,7 +58,7 @@ compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
 
 **The rotation suggests; it never locks you in.** The movement name on each card
-is a picker offering *every* movement for that day — 17 on Push, 16 on Pull, 14
+is a picker offering *every* movement for that day — 17 on Push, 17 on Pull, 14
 on Legs — grouped by pattern, each labelled with when you last did it
 (`Dips · 3d ago`). If you want to chase a lift this week, pick it,
 whatever the rotation had planned.
@@ -88,6 +88,12 @@ Before your first set the card already shows:
 
 Bodyweight movements (pull-ups, dips, hanging raises) log *added* weight; your
 bodyweight from Settings is folded into the volume and 1RM math.
+
+Implement variations as separate movements when the loading differs enough that
+one progression line would be meaningless — **Barbell Deadlift** and **Dumbbell
+Deadlift** are distinct entries for exactly that reason, each with its own
+history, suggestion and trend. Dumbbell movements are logged per dumbbell,
+matching the rest of the app.
 
 ## Tracking and comparison
 
