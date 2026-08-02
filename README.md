@@ -18,10 +18,9 @@ TestOut Security Pro (2024) · Rutgers Cybersecurity Bootcamp (2023) · athenahe
 | Project | Outcome |
 |---|---|
 | [identity-onboarding-suite](https://github.com/michaellawrence-it/identity-onboarding-suite) | The full identity lifecycle: AD provisioning → Entra sync → license-gated dynamic groups → device management → two-step time-off approval |
-| [ad-onboarding-automation](https://github.com/michaellawrence-it/ad-onboarding-automation) | Manual account-creation errors eliminated; onboarding scaled 65→120 headcount with 0 added IT staff |
+| [ad-onboarding-automation](https://github.com/michaellawrence-it/ad-onboarding-automation) | Manual account-creation errors eliminated; onboarding scaled 65→120 headcount with 0 added IT staff - including [event-driven computer-group joins](https://github.com/michaellawrence-it/ad-computer-group-automation) (new AD computers auto-join LAPS/Intune/policy groups on Event 4741) |
 | [powerapps-employee-evaluations](https://github.com/michaellawrence-it/powerapps-employee-evaluations) | Paper evaluation process replaced org-wide with a model-driven app + automated anniversary flows |
 | [hyperv-ad-lab](https://github.com/michaellawrence-it/hyperv-ad-lab) | Server 2025 domain on a self-built host - dual-vSwitch isolation, PXE imaging, RemoteApp over an internally-issued cert |
-| [ad-computer-group-automation](https://github.com/michaellawrence-it/ad-computer-group-automation) | Event-driven: new AD computers auto-join LAPS/Intune/policy groups on Event 4741 - running in production |
 | [entra-dynamic-groups](https://github.com/michaellawrence-it/entra-dynamic-groups) | Department/role/location attributes drive all security-group membership |
 | [powerplatform-alm](https://github.com/michaellawrence-it/powerplatform-alm) | Dev → Sandbox → Production promotion for Power Platform solutions, with a validated rollback path |
 | [mdt-imaging-config](https://github.com/michaellawrence-it/mdt-imaging-config) | Manual laptop setup eliminated via MDT task sequences |
