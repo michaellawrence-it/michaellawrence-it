@@ -124,6 +124,11 @@
         <button class="slot-chip" data-action="slot" data-slot="dinner" role="radio" aria-checked="false">🍕 Dinner</button>
       </div>
 
+      <button class="photo-btn" data-action="open-photo">
+        <span aria-hidden="true">📷</span> Snap or upload a photo of your food
+      </button>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+
       <div class="chip-row">
         <button class="chip" data-action="quick" data-name="Coffee w/ milk" data-kcal="30" data-p="1">☕ Coffee w/ milk <i>30</i></button>
         <button class="chip" data-action="quick" data-name="Eggs &amp; toast" data-kcal="320" data-p="16">🍳 Eggs &amp; toast <i>320</i></button>
@@ -276,6 +281,12 @@
         <p class="fineprint">Mifflin–St Jeor estimate. Real life varies — adjust after a couple of weeks of results.</p>
       </details>
 
+      <label class="field">
+        <span>Anthropic API key — AI photo estimates (optional)</span>
+        <input type="password" id="setApiKey" placeholder="sk-ant-…" autocomplete="off">
+      </label>
+      <p class="fineprint">Stays on this device and is sent only to Anthropic when you tap “Estimate”. Get a key at console.anthropic.com — each estimate costs a few cents. Excluded from data exports.</p>
+
       <div class="dlg-row">
         <button type="button" class="btn btn-ghost" id="exportBtn">Export data</button>
         <label class="btn btn-ghost btn-file">Import<input type="file" id="importFile" accept="application/json" hidden></label>
@@ -284,6 +295,40 @@
 
       <button class="btn btn-primary btn-wide" value="save" id="saveSettings">Save</button>
     </form>
+  </dialog>
+
+  <!-- ============ Log from a photo ============ -->
+  <dialog id="photoDialog" aria-label="Log from a photo">
+    <form class="dlg" id="photoForm">
+      <div class="dlg-head">
+        <h2>Log from a photo</h2>
+        <button class="icon-btn" type="button" id="closePhoto" aria-label="Close">×</button>
+      </div>
+
+      <img id="photoPreview" class="photo-preview" alt="Preview of your food photo">
+
+      <div class="ai-row">
+        <button type="button" class="btn btn-ghost btn-ai" id="estimateBtn"><span aria-hidden="true">✨</span> Estimate calories &amp; protein with AI</button>
+        <p class="fineprint" id="aiHint" hidden>Add your Anthropic API key in settings to enable AI estimates — the photo attaches either way.</p>
+        <p class="ai-note" id="aiNote" hidden></p>
+      </div>
+
+      <label class="field">
+        <span>What is it?</span>
+        <input type="text" id="photoName" maxlength="60" placeholder="e.g. Chicken burrito" autocomplete="off">
+      </label>
+      <div class="two-col">
+        <label class="field"><span>Calories</span><input type="number" id="photoKcal" min="1" max="5000" inputmode="numeric" required></label>
+        <label class="field"><span>Protein (g)</span><input type="number" id="photoProt" min="0" max="400" inputmode="numeric"></label>
+      </div>
+
+      <button class="btn btn-primary btn-wide" type="submit" id="photoLogBtn">Log it</button>
+    </form>
+  </dialog>
+
+  <dialog id="lightboxDialog" class="lightbox" aria-label="Food photo">
+    <img id="lightboxImg" alt="Food photo">
+    <p id="lightboxCap"></p>
   </dialog>
 
   <div class="toast" id="toast" hidden>

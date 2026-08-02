@@ -5,7 +5,9 @@
   const SLICE_KCAL = 285; // large cheese slice, ballpark
   const SLICE_PROT = 12;  // grams of protein per slice
   const LS_KEY = "dinnerfund.v1";
-  const DEFAULTS = { target: 2000, reserve: 900, proteinGoal: 140, welcomed: false };
+  const API_MODEL = "claude-opus-5";
+  const PHOTO_KEEP_DAYS = 14; // photos older than this are pruned; the numbers stay
+  const DEFAULTS = { target: 2000, reserve: 900, proteinGoal: 140, apiKey: "", welcomed: false };
   const SLOT_EMOJI = { breakfast: "☕", lunch: "🥪", snack: "🍎", dinner: "🍕" };
 
   /* Preloaded recipes — per single serving, rounded. cat: basics|cod|salmon|thigh|steak|rice */
@@ -121,7 +123,17 @@
   state.settings = { ...DEFAULTS, ...state.settings };
 
   function save() {
-    try { store.setItem(LS_KEY, JSON.stringify(state)); } catch { /* full/blocked */ }
+    const write = () => {
+      try { store.setItem(LS_KEY, JSON.stringify(state)); return true; } catch { return false; }
+    };
+    if (write()) return;
+    // storage full — drop the oldest photos first (numbers are kept), then retry
+    for (const key of Object.keys(state.days).sort()) {
+      for (const e of state.days[key].entries) {
+        if (e.photo) { delete e.photo; if (write()) return; }
+      }
+    }
+    toast("Storage is full — the latest change may not stick around.");
   }
 
   /* ---------- dates ---------- */
@@ -285,8 +297,11 @@
     $("entriesTotal").textContent = `${fmt(c.total)} kcal · ${fmt(c.P)} g protein`;
     list.innerHTML = c.entries.map((e) => {
       const time = new Date(e.t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      const lead = e.photo
+        ? `<img class="e-thumb" src="${e.photo}" alt="Photo of ${escapeHtml(e.name)}" data-action="view-photo" data-id="${e.id}">`
+        : `<span class="e-emoji" aria-hidden="true">${SLOT_EMOJI[e.slot] || "🍽"}</span>`;
       return `<li>
-        <span class="e-emoji" aria-hidden="true">${SLOT_EMOJI[e.slot] || "🍽"}</span>
+        ${lead}
         <span class="e-name">${escapeHtml(e.name)}</span>
         <span class="e-time">${time}</span>
         <span class="e-kcal">${fmt(e.kcal)}${e.p ? `<small>${fmt(e.p)} g</small>` : ""}</span>
@@ -419,7 +434,7 @@
     return "dinner";
   }
 
-  function addEntry(name, kcal, slot, p) {
+  function addEntry(name, kcal, slot, p, photo) {
     kcal = Math.round(Number(kcal));
     if (!Number.isFinite(kcal) || kcal < 1 || kcal > 5000) return;
     p = Math.round(Number(p));
@@ -432,6 +447,7 @@
       slot,
       t: new Date().toISOString(),
     };
+    if (typeof photo === "string" && photo.startsWith("data:image/")) entry.photo = photo;
     getDay(currentKey).entries.push(entry);
     lastAction = { type: "add", key: currentKey, id: entry.id };
     save();
@@ -488,6 +504,171 @@
     clearTimeout(toastTimer);
   }
 
+  /* ---------- photo logging ---------- */
+
+  let pendingPhoto = null; // { api: base64 jpeg for the estimate call, store: small data URL kept on the entry }
+
+  async function processPhotoFile(file) {
+    // Prefer createImageBitmap (applies EXIF orientation from phone cameras); fall back to <img>.
+    let source = await createImageBitmap(file, { imageOrientation: "from-image" }).catch(() => null);
+    if (!source) {
+      source = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("unreadable image"));
+        img.src = URL.createObjectURL(file);
+      });
+    }
+    const w = source.naturalWidth || source.width;
+    const h = source.naturalHeight || source.height;
+    const render = (maxDim, quality) => {
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(w * scale));
+      canvas.height = Math.max(1, Math.round(h * scale));
+      canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", quality);
+    };
+    return {
+      api: render(1024, 0.85).split(",")[1], // bare base64 for the API
+      store: render(320, 0.7),               // small data URL for the journal
+    };
+  }
+
+  function openPhotoSheet() {
+    $("photoPreview").src = "data:image/jpeg;base64," + pendingPhoto.api;
+    $("photoName").value = "";
+    $("photoKcal").value = "";
+    $("photoProt").value = "";
+    $("aiNote").hidden = true;
+    const hasKey = Boolean((state.settings.apiKey || "").trim());
+    $("estimateBtn").hidden = !hasKey;
+    $("aiHint").hidden = hasKey;
+    $("photoDialog").showModal();
+  }
+
+  async function estimateFromPhoto() {
+    const btn = $("estimateBtn");
+    const note = $("aiNote");
+    const prevLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Estimating…";
+    note.hidden = false;
+    note.textContent = "Asking Claude to look at your plate…";
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": state.settings.apiKey.trim(),
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          "anthropic-beta": "server-side-fallback-2026-07-01",
+        },
+        body: JSON.stringify({
+          model: API_MODEL,
+          max_tokens: 4096,
+          fallbacks: "default",
+          output_config: {
+            effort: "low",
+            format: {
+              type: "json_schema",
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Short dish name for a food log, max 40 characters" },
+                  kcal: { type: "integer", description: "Estimated total calories for the full visible portion" },
+                  protein_g: { type: "integer", description: "Estimated grams of protein for the full visible portion" },
+                  confidence: { type: "string", enum: ["low", "medium", "high"] },
+                  note: { type: "string", description: "One short sentence stating the portion assumption" },
+                },
+                required: ["name", "kcal", "protein_g", "confidence", "note"],
+                additionalProperties: false,
+              },
+            },
+          },
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: pendingPhoto.api } },
+              { type: "text", text: "This is a photo someone took for their calorie-tracking food log. Estimate the nutrition of the full visible portion as one serving. Be realistic about home portion sizes, and total everything on the plate as one meal." },
+            ],
+          }],
+        }),
+      });
+      if (!res.ok) {
+        const msg =
+          res.status === 401 ? "That API key was rejected — double-check it in settings." :
+          res.status === 429 ? "Rate limited — give it a moment and try again." :
+          res.status >= 500 ? "Anthropic's API is having a moment — try again shortly." :
+          `The API returned an error (${res.status}).`;
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      if (data.stop_reason === "refusal") throw new Error("The model declined this image — enter the numbers manually.");
+      const textBlock = (data.content || []).find((b) => b.type === "text");
+      const est = JSON.parse(textBlock.text);
+      $("photoName").value = String(est.name || "").slice(0, 60);
+      $("photoKcal").value = clampInt(est.kcal, 1, 5000, "");
+      $("photoProt").value = clampInt(est.protein_g, 0, 400, "");
+      const conf = String(est.confidence || "medium");
+      note.textContent = `${conf.charAt(0).toUpperCase() + conf.slice(1)} confidence — ${est.note} Tweak before logging.`;
+    } catch (err) {
+      note.textContent = err instanceof TypeError
+        ? "Couldn't reach the API from here (network blocked?). Enter the numbers manually."
+        : (err.message || "Something went wrong — enter the numbers manually.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+    }
+  }
+
+  $("photoInput").addEventListener("change", async (ev) => {
+    const file = ev.target.files[0];
+    ev.target.value = "";
+    if (!file) return;
+    try {
+      pendingPhoto = await processPhotoFile(file);
+    } catch {
+      toast("Couldn't read that image — try a different photo.");
+      return;
+    }
+    openPhotoSheet();
+  });
+
+  $("photoForm").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    if (!pendingPhoto || !$("photoKcal").value) return;
+    addEntry(
+      $("photoName").value.trim() || "From photo",
+      $("photoKcal").value,
+      selectedSlot,
+      $("photoProt").value,
+      pendingPhoto.store,
+    );
+    pendingPhoto = null;
+    $("photoDialog").close();
+  });
+
+  $("closePhoto").addEventListener("click", () => { pendingPhoto = null; $("photoDialog").close(); });
+  $("estimateBtn").addEventListener("click", estimateFromPhoto);
+  $("lightboxDialog").addEventListener("click", () => $("lightboxDialog").close());
+
+  // photos are a journal, not an archive: drop images (never the numbers) after a couple of weeks
+  (function prunePhotos() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - PHOTO_KEEP_DAYS);
+    const cutKey = dayKeyOf(cutoff);
+    let changed = false;
+    for (const [key, day] of Object.entries(state.days)) {
+      if (key >= cutKey) continue;
+      for (const e of day.entries) {
+        if (e.photo) { delete e.photo; changed = true; }
+      }
+    }
+    if (changed) save();
+  })();
+
   /* ---------- settings ---------- */
 
   const dlg = $("settingsDialog");
@@ -497,6 +678,7 @@
     $("setTarget").value = state.settings.target;
     $("setReserve").value = state.settings.reserve;
     $("setProtein").value = state.settings.proteinGoal;
+    $("setApiKey").value = state.settings.apiKey;
     updateTargetNote();
     updateCalc();
     dlg.showModal();
@@ -509,6 +691,7 @@
     state.settings.target = target;
     state.settings.reserve = reserve;
     state.settings.proteinGoal = proteinGoal;
+    state.settings.apiKey = $("setApiKey").value.trim();
     state.settings.welcomed = true;
     save();
     renderAll();
@@ -542,7 +725,9 @@
   }
 
   function exportData() {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    // the API key never leaves this device — strip it from backups
+    const data = { ...state, settings: { ...state.settings, apiKey: "" } };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `dinner-fund-${todayKey()}.json`;
@@ -556,7 +741,7 @@
       try {
         const data = JSON.parse(reader.result);
         if (!data || typeof data !== "object" || !data.settings || !data.days) throw new Error("bad shape");
-        state.settings = { ...DEFAULTS, ...data.settings, welcomed: true };
+        state.settings = { ...DEFAULTS, ...data.settings, apiKey: state.settings.apiKey, welcomed: true };
         state.days = data.days;
         save();
         renderAll();
@@ -604,6 +789,16 @@
       if (r) addEntry(r.name, r.kcal, selectedSlot, r.p);
     }
     else if (a === "rcat") { recipeCat = btn.dataset.cat; renderRecipes(); }
+    else if (a === "open-photo") $("photoInput").click();
+    else if (a === "view-photo") {
+      const entry = getDay(currentKey).entries.find((e) => e.id === btn.dataset.id);
+      if (entry && entry.photo) {
+        $("lightboxImg").src = entry.photo;
+        $("lightboxCap").textContent =
+          `${entry.name} · ${fmt(entry.kcal)} kcal${entry.p ? ` · ${fmt(entry.p)} g protein` : ""}`;
+        $("lightboxDialog").showModal();
+      }
+    }
     else if (a === "res-minus") bumpReserve(-50);
     else if (a === "res-plus") bumpReserve(50);
     else if (a === "open-settings") openSettings();
