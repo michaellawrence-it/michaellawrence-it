@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dinner Fund</title>
+  <meta name="description" content="A calorie budget that protects your cheat dinner. Eat light by day, feast at night, stay on track.">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f9f9f7">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0d0d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Dinner Fund">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🍕</span>
+        <h1>Dinner Fund</h1>
+      </div>
+      <div class="top-actions">
+        <a class="icon-btn kitchen-link" href="../recipe-app/" title="Mike's Kitchen — the recipe book" aria-label="Open Mike's Kitchen recipes">🍳</a>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm8.94 3.6c0-.5-.05-.98-.13-1.45l2-1.56-2-3.46-2.36.95a7.9 7.9 0 0 0-2.51-1.45L15.58 2h-4l-.36 2.52c-.9.32-1.75.81-2.5 1.45l-2.37-.95-2 3.46 2 1.56a8.2 8.2 0 0 0 0 2.9l-2 1.57 2 3.46 2.36-.95c.76.64 1.6 1.13 2.51 1.45L11.58 21h4l.36-2.53a7.9 7.9 0 0 0 2.5-1.45l2.37.95 2-3.46-2-1.56c.08-.47.13-.96.13-1.45Z" transform="translate(-1.58 .5)"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <p class="dateline" id="dateLine">Today</p>
+
+    <div class="strip strip-warn" id="storageWarn" hidden>
+      <span class="strip-ico" aria-hidden="true">⚠️</span>
+      <span>Storage is unavailable in this browser context — entries won't survive a reload.</span>
+    </div>
+
+    <div class="strip strip-info" id="welcomeStrip" hidden>
+      <span class="strip-ico" aria-hidden="true">👋</span>
+      <span>Fresh start: <b id="welcomeNums">2,000 kcal/day, 900 reserved for dinner</b>. Make them yours in <button class="linklike" data-action="open-settings">settings</button>.</span>
+      <button class="strip-x" data-action="dismiss-welcome" aria-label="Dismiss">×</button>
+    </div>
+
+    <!-- ============ Hero: the one number that matters right now ============ -->
+    <section class="card hero-card">
+      <div aria-live="polite">
+        <p class="hero-label" id="heroLabel">Left before dinner</p>
+        <p class="hero-value"><span id="heroValue">1,100</span><span class="hero-unit">kcal</span></p>
+        <p class="hero-sub" id="heroSub">for breakfast, lunch &amp; snacks — dinner is already paid for</p>
+      </div>
+
+      <div class="meter" id="meter">
+        <div class="meter-track" role="img" id="meterTrack" aria-label="">
+          <div class="seg seg-day" id="segDay"></div>
+          <div class="seg seg-dinner" id="segDinner"></div>
+          <div class="meter-divider" id="meterDivider"></div>
+          <div class="meter-overcap" id="meterOverCap" hidden></div>
+        </div>
+        <div class="meter-scale">
+          <span>0</span>
+          <span class="pizza-mark" id="pizzaMark"><span aria-hidden="true">🍕</span> dinner line</span>
+          <span id="scaleEnd">2,000</span>
+        </div>
+      </div>
+
+      <div class="meter-legend">
+        <span class="key"><i class="dot dot-day" aria-hidden="true"></i>Day <b id="legDay">0</b></span>
+        <span class="key"><i class="dot dot-dinner" aria-hidden="true"></i>Dinner <b id="legDinner">0</b> <span class="of">of <span id="legReserve">900</span> reserved</span></span>
+      </div>
+
+      <div class="protein-row">
+        <span class="protein-label">Protein</span>
+        <span class="protein-bar" aria-hidden="true"><span class="protein-fill" id="protFill"></span></span>
+        <span class="protein-nums"><b id="protNow">0</b> <span id="protGoalTxt">of 140 g</span></span>
+      </div>
+
+      <p class="status" id="statusLine"><span class="status-ico ico-good">✓</span><span>Dinner is fully funded.</span></p>
+    </section>
+
+    <!-- ============ Tonight's dinner ============ -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Tonight's dinner</h2>
+        <div class="reserve-edit" role="group" aria-label="Calories reserved for tonight's dinner">
+          <button class="step-btn step-sm" data-action="res-minus" aria-label="Reserve 50 fewer calories">−</button>
+          <span class="reserve-num"><b id="resValue">900</b> reserved</span>
+          <button class="step-btn step-sm" data-action="res-plus" aria-label="Reserve 50 more calories">+</button>
+        </div>
+      </div>
+
+      <p class="dinner-avail" id="dinnerAvailLine">You can spend <b>900</b> tonight — ≈ 3 large slices.</p>
+
+      <div class="pizza-math">
+        <div class="slice-stepper" role="group" aria-label="Pizza slices">
+          <button class="step-btn" data-action="slice-minus" aria-label="One less slice">−</button>
+          <div class="slice-readout">
+            <b id="sliceCount">3</b>
+            <span>slices · <span id="sliceKcal">855</span> kcal</span>
+          </div>
+          <button class="step-btn" data-action="slice-plus" aria-label="One more slice">+</button>
+        </div>
+        <button class="btn btn-primary" id="logSlicesBtn" data-action="log-slices">Log pizza · 855</button>
+      </div>
+
+      <div class="chip-row" role="group" aria-label="Other dinner ideas">
+        <button class="chip" data-action="quick-dinner" data-name="Burger &amp; fries" data-kcal="1100" data-p="35">🍔 Burger &amp; fries <i>1,100</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Burrito bowl" data-kcal="950" data-p="42">🌯 Burrito bowl <i>950</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Curry &amp; rice" data-kcal="900" data-p="28">🍛 Curry &amp; rice <i>900</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Pasta night" data-kcal="800" data-p="26">🍝 Pasta night <i>800</i></button>
+        <button class="chip" data-action="quick-dinner" data-name="Tacos ×3" data-kcal="700" data-p="30">🌮 Tacos ×3 <i>700</i></button>
+      </div>
+
+      <p class="fineprint">Slice math assumes ≈ 285 kcal for a large cheese slice. All foods are estimates — tweak any entry after logging.</p>
+    </section>
+
+    <!-- ============ Log the day ============ -->
+    <section class="card">
+      <div class="card-head"><h2>Log food</h2></div>
+
+      <div class="slot-chips" role="radiogroup" aria-label="Meal">
+        <button class="slot-chip" data-action="slot" data-slot="breakfast" role="radio" aria-checked="false">☕ Breakfast</button>
+        <button class="slot-chip" data-action="slot" data-slot="lunch" role="radio" aria-checked="false">🥪 Lunch</button>
+        <button class="slot-chip" data-action="slot" data-slot="snack" role="radio" aria-checked="false">🍎 Snack</button>
+        <button class="slot-chip" data-action="slot" data-slot="dinner" role="radio" aria-checked="false">🍕 Dinner</button>
+      </div>
+
+      <button class="photo-btn" data-action="open-photo">
+        <span aria-hidden="true">📷</span> Snap or upload a photo of your food
+      </button>
+      <input type="file" id="photoInput" accept="image/*" hidden>
+
+      <div class="chip-row">
+        <button class="chip" data-action="quick" data-name="Coffee w/ milk" data-kcal="30" data-p="1">☕ Coffee w/ milk <i>30</i></button>
+        <button class="chip" data-action="quick" data-name="Eggs &amp; toast" data-kcal="320" data-p="16">🍳 Eggs &amp; toast <i>320</i></button>
+        <button class="chip" data-action="quick" data-name="Oatmeal &amp; berries" data-kcal="300" data-p="8">🥣 Oatmeal &amp; berries <i>300</i></button>
+        <button class="chip" data-action="quick" data-name="Greek yogurt" data-kcal="120" data-p="15">🥛 Greek yogurt <i>120</i></button>
+        <button class="chip" data-action="quick" data-name="Banana" data-kcal="105" data-p="1">🍌 Banana <i>105</i></button>
+        <button class="chip" data-action="quick" data-name="Apple" data-kcal="95" data-p="0">🍎 Apple <i>95</i></button>
+        <button class="chip" data-action="quick" data-name="Turkey sandwich" data-kcal="450" data-p="28">🥪 Turkey sandwich <i>450</i></button>
+        <button class="chip" data-action="quick" data-name="Chicken salad" data-kcal="400" data-p="35">🥗 Chicken salad <i>400</i></button>
+        <button class="chip" data-action="quick" data-name="Soup cup" data-kcal="220" data-p="8">🍜 Soup cup <i>220</i></button>
+        <button class="chip" data-action="quick" data-name="Protein bar" data-kcal="200" data-p="20">🍫 Protein bar <i>200</i></button>
+        <button class="chip" data-action="quick" data-name="Handful of nuts" data-kcal="170" data-p="6">🥜 Nuts <i>170</i></button>
+        <button class="chip" data-action="quick" data-name="Smoothie" data-kcal="250" data-p="8">🥤 Smoothie <i>250</i></button>
+      </div>
+
+      <form class="custom-form" id="customForm" autocomplete="off">
+        <input type="text" id="custName" class="span-all" placeholder="Something else…" maxlength="60" aria-label="Food name">
+        <input type="number" id="custKcal" placeholder="kcal" min="1" max="5000" inputmode="numeric" required aria-label="Calories">
+        <input type="number" id="custProt" placeholder="protein (g)" min="0" max="400" inputmode="numeric" aria-label="Protein in grams, optional">
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+    </section>
+
+    <!-- ============ Recipes ============ -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Recipes</h2>
+        <span class="head-num"><span aria-hidden="true">💪</span> = protein-dense</span>
+      </div>
+
+      <div class="chip-row rcat-row" role="group" aria-label="Recipe category">
+        <button class="chip is-on" data-action="rcat" data-cat="All">All</button>
+        <button class="chip" data-action="rcat" data-cat="basics">Basics</button>
+        <button class="chip" data-action="rcat" data-cat="cod">Cod</button>
+        <button class="chip" data-action="rcat" data-cat="salmon">Salmon</button>
+        <button class="chip" data-action="rcat" data-cat="thigh">Chicken thigh</button>
+        <button class="chip" data-action="rcat" data-cat="steak">Steak</button>
+        <button class="chip" data-action="rcat" data-cat="rice">Rice bowls</button>
+        <button class="chip" data-action="rcat" data-cat="kitchen" id="rcatKitchen" hidden>🍳 My kitchen</button>
+      </div>
+
+      <div id="recipeList"></div>
+
+      <p class="fineprint">Per single serving, rounded. Log with the meal selected up in “Log food” — dinners land in the fund automatically when Dinner is picked. Recipes you save in <a class="plainlink" href="../recipe-app/">Mike's Kitchen</a> with a kcal figure show up here under 🍳 My kitchen.</p>
+    </section>
+
+    <!-- ============ Today's entries ============ -->
+    <section class="card" id="entriesCard" hidden>
+      <div class="card-head">
+        <h2>Today so far</h2>
+        <span class="head-num" id="entriesTotal">0 kcal</span>
+      </div>
+      <ul class="entries" id="entriesList"></ul>
+    </section>
+
+    <!-- ============ The week ============ -->
+    <section class="card">
+      <div class="card-head"><h2>Your week</h2></div>
+
+      <div class="tiles">
+        <div class="tile">
+          <p class="tile-label">On-target streak</p>
+          <p class="tile-value" id="tileStreak">0<span class="tile-unit">days</span></p>
+        </div>
+        <div class="tile">
+          <p class="tile-label">Dinners that fit</p>
+          <p class="tile-value" id="tileFunded">—</p>
+        </div>
+      </div>
+
+      <div class="week-wrap">
+        <div class="week-chart" id="weekChart" aria-label="Daily calories over the last 7 days"></div>
+        <div class="week-legend">
+          <span class="key"><i class="dot dot-day" aria-hidden="true"></i>Under target</span>
+          <span class="key"><i class="dot dot-over" aria-hidden="true"></i><span aria-hidden="true">▲ </span>Over target</span>
+          <span class="key"><i class="dash" aria-hidden="true"></i>Target</span>
+        </div>
+      </div>
+
+      <details class="week-table-wrap">
+        <summary>This week as numbers</summary>
+        <table class="week-table">
+          <thead><tr><th scope="col">Day</th><th scope="col">Total</th><th scope="col">Dinner</th><th scope="col">Protein</th><th scope="col">vs target</th></tr></thead>
+          <tbody id="weekTableBody"></tbody>
+        </table>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <p>Dinner Fund keeps everything on this device — nothing is uploaded.</p>
+      <p>Calorie figures are rough estimates, and this app isn't medical or nutrition advice.</p>
+    </footer>
+  </div>
+
+  <!-- ============ Settings ============ -->
+  <dialog id="settingsDialog" aria-label="Settings">
+    <form method="dialog" class="dlg">
+      <div class="dlg-head">
+        <h2>Settings</h2>
+        <button class="icon-btn" type="button" id="closeSettings" aria-label="Close">×</button>
+      </div>
+
+      <label class="field">
+        <span>Daily calorie target</span>
+        <input type="number" id="setTarget" min="800" max="6000" step="50" inputmode="numeric">
+      </label>
+      <label class="field">
+        <span>Default dinner reserve</span>
+        <input type="number" id="setReserve" min="0" max="3000" step="50" inputmode="numeric">
+      </label>
+      <label class="field">
+        <span>Daily protein goal (g)</span>
+        <input type="number" id="setProtein" min="40" max="400" step="5" inputmode="numeric">
+      </label>
+      <p class="fineprint" id="targetNote" hidden><span aria-hidden="true">⚠️</span> That's a very low target. Most adults shouldn't go under ~1,200 kcal without a clinician's guidance.</p>
+
+      <details class="calc">
+        <summary>Help me pick a target</summary>
+        <div class="calc-grid">
+          <div class="field">
+            <span>Formula profile</span>
+            <div class="seg-2" role="radiogroup" aria-label="Formula profile">
+              <button type="button" class="seg-opt is-on" data-calc-sex="male">Male</button>
+              <button type="button" class="seg-opt" data-calc-sex="female">Female</button>
+            </div>
+          </div>
+          <label class="field"><span>Age</span><input type="number" id="calcAge" min="18" max="99" value="35" inputmode="numeric"></label>
+          <label class="field"><span>Height (in)</span><input type="number" id="calcHeight" min="48" max="90" value="70" inputmode="numeric"></label>
+          <label class="field"><span>Weight (lb)</span><input type="number" id="calcWeight" min="80" max="500" value="200" inputmode="numeric"></label>
+          <label class="field"><span>Activity</span>
+            <select id="calcActivity">
+              <option value="1.2">Mostly sitting</option>
+              <option value="1.375" selected>Lightly active</option>
+              <option value="1.55">Active</option>
+              <option value="1.725">Very active</option>
+            </select>
+          </label>
+          <label class="field"><span>Goal</span>
+            <select id="calcGoal">
+              <option value="0">Maintain</option>
+              <option value="250">Ease into it (−250/day)</option>
+              <option value="500" selected>Steady loss (−500/day)</option>
+              <option value="750">Faster (−750/day)</option>
+            </select>
+          </label>
+        </div>
+        <div class="calc-out">
+          <span id="calcOut">Suggested target: <b>2,150</b> kcal/day</span>
+          <button type="button" class="btn btn-ghost" id="useSuggestion">Use it</button>
+        </div>
+        <p class="fineprint">Mifflin–St Jeor estimate. Real life varies — adjust after a couple of weeks of results.</p>
+      </details>
+
+      <label class="field">
+        <span>Anthropic API key — AI photo estimates (optional)</span>
+        <input type="password" id="setApiKey" placeholder="sk-ant-…" autocomplete="off">
+      </label>
+      <p class="fineprint">Stays on this device and is sent only to Anthropic when you tap “Estimate”. Get a key at console.anthropic.com — each estimate costs a few cents. Excluded from data exports.</p>
+
+      <div class="dlg-row">
+        <button type="button" class="btn btn-ghost" id="exportBtn">Export data</button>
+        <label class="btn btn-ghost btn-file">Import<input type="file" id="importFile" accept="application/json" hidden></label>
+        <button type="button" class="btn btn-danger-ghost" id="resetBtn">Reset all</button>
+      </div>
+
+      <button class="btn btn-primary btn-wide" value="save" id="saveSettings">Save</button>
+    </form>
+  </dialog>
+
+  <!-- ============ Log from a photo ============ -->
+  <dialog id="photoDialog" aria-label="Log from a photo">
+    <form class="dlg" id="photoForm">
+      <div class="dlg-head">
+        <h2>Log from a photo</h2>
+        <button class="icon-btn" type="button" id="closePhoto" aria-label="Close">×</button>
+      </div>
+
+      <img id="photoPreview" class="photo-preview" alt="Preview of your food photo">
+
+      <div class="ai-row">
+        <button type="button" class="btn btn-ghost btn-ai" id="estimateBtn"><span aria-hidden="true">✨</span> Estimate calories &amp; protein with AI</button>
+        <p class="fineprint" id="aiHint" hidden>Add your Anthropic API key in settings to enable AI estimates — the photo attaches either way.</p>
+        <p class="ai-note" id="aiNote" hidden></p>
+      </div>
+
+      <label class="field">
+        <span>What is it?</span>
+        <input type="text" id="photoName" maxlength="60" placeholder="e.g. Chicken burrito" autocomplete="off">
+      </label>
+      <div class="two-col">
+        <label class="field"><span>Calories</span><input type="number" id="photoKcal" min="1" max="5000" inputmode="numeric" required></label>
+        <label class="field"><span>Protein (g)</span><input type="number" id="photoProt" min="0" max="400" inputmode="numeric"></label>
+      </div>
+
+      <button class="btn btn-primary btn-wide" type="submit" id="photoLogBtn">Log it</button>
+    </form>
+  </dialog>
+
+  <dialog id="lightboxDialog" class="lightbox" aria-label="Food photo">
+    <img id="lightboxImg" alt="Food photo">
+    <p id="lightboxCap"></p>
+  </dialog>
+
+  <div class="toast" id="toast" hidden>
+    <span id="toastText"></span>
+    <button class="linklike" id="toastUndo" hidden>Undo</button>
+  </div>
+
+  <div class="viztip" id="vizTip" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
