@@ -56,8 +56,25 @@ caching and home-screen install are the only extras that need hosting.)
 
 ## Adding recipes
 
-Tap **＋ Add recipe**. For ingredients, start each line with an amount and it
-will scale automatically:
+Tap **＋ Add recipe**. The **⚡ Import** panel at the top of the form gives you
+three ways in, like the big recipe apps:
+
+- **From a link** — paste a recipe URL and tap Fetch. Pages with standard
+  recipe data (schema.org, which nearly every recipe site embeds) import
+  automatically: title, summary, servings, times, ingredients, steps, tags,
+  and per-serving nutrition when the site provides it. If the page can't be
+  fetched directly, a public CORS proxy (allorigins.win) is tried — the URL
+  you're importing is sent to that service.
+- **Paste the whole recipe** — copy everything (title, ingredients, method)
+  from anywhere and tap *Read pasted text*; it's parsed into the form locally.
+- **✨ Import with Claude** — appears once an Anthropic API key is saved in
+  Dinner Fund's settings (the same key its photo estimates use). Claude reads
+  pages without recipe data or messy pastes, and estimates kcal/protein per
+  serving. The key stays on the device; requests go only to Anthropic.
+
+Every import lands in the form for review — nothing is saved until you tap
+Save. For hand-typed ingredients, start each line with an amount and it will
+scale automatically:
 
 ```
 400g spaghetti

@@ -261,6 +261,27 @@ li.checked .ing-text{opacity:.42; text-decoration:line-through}
 }
 .editbar .grow{margin-left:auto}
 
+/* ---------- Import panel ---------- */
+.importbox{
+  margin:6px 0 4px; padding:0 18px 16px; border-radius:16px;
+  background:var(--brand-soft2); border:1.5px dashed color-mix(in srgb, var(--brand) 30%, transparent);
+}
+.importbox summary{
+  padding:16px 0 12px; font-weight:700; font-size:16px; color:var(--brand);
+  cursor:pointer; -webkit-user-select:none; user-select:none; list-style-position:inside;
+}
+.importbox label{margin-top:8px}
+.importbox textarea, .importbox input[type=url]{
+  width:100%; padding:12px 14px; font-size:16px; background:var(--card); color:var(--ink);
+  border:1.5px solid var(--line); border-radius:12px;
+}
+.importbox textarea{resize:vertical; min-height:100px; line-height:1.5}
+.importbox input[type=url]:focus, .importbox textarea:focus{outline:none; border-color:var(--brand)}
+.improw{display:flex; gap:10px}
+.improw .btn{flex:none}
+.improw2{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px}
+.importbox .btn:disabled{opacity:.55}
+
 /* ---------- Modal / toast ---------- */
 .modal{position:fixed; inset:0; z-index:40; display:grid; place-items:center; background:rgba(24,17,11,.5); padding:20px}
 .modal-card{width:min(420px, 100%); background:var(--card); border-radius:22px; padding:24px; box-shadow:var(--shadow-lg); border:1px solid var(--line)}
@@ -447,6 +468,336 @@ function ingredientHTML(raw, f, i, opts){
   const s = scaleParts(p, f);
   const qtyUnit = s.attached ? esc(s.qtyText + s.unitText) : esc(s.unitText ? s.qtyText + " " + s.unitText : s.qtyText);
   return `<li><div class="ing-row"${attrs}>${tick}<span class="ing-text"><span class="qty">${qtyUnit}</span>${s.itemText ? " " + esc(s.itemText) : ""}</span></div></li>`;
+}
+
+/* =====================================================================
+   Recipe import — from a URL (schema.org JSON-LD), pasted text, or Claude
+   ===================================================================== */
+const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const AI_MODEL = "claude-opus-5"; // same model Dinner Fund uses for photo estimates
+
+function anthropicKey(){
+  if (!crossApp) return "";
+  try {
+    const df = JSON.parse(localStorage.getItem(DF_KEY) || "null");
+    return String(df?.settings?.apiKey || "").trim();
+  } catch { return ""; }
+}
+
+const _decodeEl = document.createElement("textarea");
+function cleanText(s){
+  _decodeEl.innerHTML = String(s ?? "").replace(/<[^>]+>/g, " ");
+  return _decodeEl.value.replace(/\s+/g, " ").trim();
+}
+const hostnameOf = url => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+function parseISODuration(s){
+  const m = String(s ?? "").match(/^-?P(?:(\d+(?:\.\d+)?)D)?(?:T(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+  if (!m) return 0;
+  return Math.round((+m[1] || 0) * 1440 + (+m[2] || 0) * 60 + (+m[3] || 0) + (+m[4] || 0) / 60);
+}
+
+const EMOJI_GUESS = [
+  [/pasta|spaghetti|linguine|penne|lasagn|noodle|ramen|mac and cheese|macaroni/, "🍝"],
+  [/pizza/, "🍕"], [/burger/, "🍔"], [/taco|burrito|quesadilla|fajita/, "🌮"],
+  [/curry|masala|korma|tikka|dhal|dal\b/, "🍛"], [/salad|slaw/, "🥗"],
+  [/soup|broth|chowder|stew|chili|goulash/, "🍲"], [/chicken|turkey/, "🍗"],
+  [/beef|steak|lamb|pork|rib|meatball|bolognese|brisket/, "🥩"],
+  [/salmon|cod|fish|tuna|trout|halibut/, "🐟"], [/shrimp|prawn/, "🍤"],
+  [/rice|risotto|paella|biryani|fried rice/, "🍚"], [/pancake|waffle|crepe/, "🥞"],
+  [/egg|omelet|frittata|shakshuka/, "🍳"], [/bread|toast|sandwich|bagel|panini/, "🍞"],
+  [/cake|brownie|cupcake|cheesecake/, "🍰"], [/cookie|biscuit/, "🍪"],
+  [/\bpie\b|\btart\b|galette/, "🥧"], [/avocado/, "🥑"],
+  [/smoothie|shake|juice/, "🥤"], [/oat|porridge|granola|muesli/, "🥣"]
+];
+function guessEmoji(text){
+  const t = String(text ?? "").toLowerCase();
+  for (const [re, e] of EMOJI_GUESS) if (re.test(t)) return e;
+  return "🍽️";
+}
+
+/* schema.org/Recipe out of a page's JSON-LD — how most recipe sites mark up */
+function extractRecipeFromJsonLd(html){
+  let doc;
+  try { doc = new DOMParser().parseFromString(html, "text/html"); } catch { return null; }
+  const nodes = [];
+  for (const script of doc.querySelectorAll('script[type="application/ld+json"]')){
+    let data;
+    try { data = JSON.parse(script.textContent); } catch { continue; }
+    const stack = Array.isArray(data) ? [...data] : [data];
+    while (stack.length){
+      const node = stack.pop();
+      if (!node || typeof node !== "object") continue;
+      const types = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
+      if (types.includes("Recipe")){ nodes.push(node); continue; }
+      if (Array.isArray(node["@graph"])) stack.push(...node["@graph"]);
+      if (node.mainEntity) stack.push(node.mainEntity);
+    }
+  }
+  const r = nodes[0];
+  if (!r) return null;
+
+  const yieldRaw = Array.isArray(r.recipeYield) ? r.recipeYield[0] : r.recipeYield;
+  const servings = parseInt(String(yieldRaw ?? "").match(/\d+/)?.[0], 10) || 0;
+
+  const steps = [];
+  (function walk(node){
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (typeof node === "string") return node.split(/\n+/).map(cleanText).filter(Boolean).forEach(s => steps.push(s));
+    if (typeof node === "object"){
+      if (Array.isArray(node.itemListElement)) return walk(node.itemListElement);
+      const t = cleanText(node.text || node.name || "");
+      if (t) steps.push(t);
+    }
+  })(r.recipeInstructions);
+
+  const tagsRaw = [r.recipeCategory, r.recipeCuisine].flat()
+    .flatMap(t => typeof t === "string" ? t.split(",") : [])
+    .map(cleanText).filter(Boolean);
+  const title = cleanText(r.name);
+  if (!title) return null;
+
+  let prep = parseISODuration(r.prepTime), cook = parseISODuration(r.cookTime);
+  if (!prep && !cook) cook = parseISODuration(r.totalTime);
+
+  return {
+    title,
+    summary: cleanText(r.description).slice(0, 240),
+    emoji: guessEmoji(title + " " + cleanText(r.keywords)),
+    baseServings: servings,
+    prepMins: prep,
+    cookMins: cook,
+    ingredients: (r.recipeIngredient || r.ingredients || []).map(cleanText).filter(Boolean),
+    steps,
+    tags: [...new Set(tagsRaw.map(t => t.charAt(0).toUpperCase() + t.slice(1)))].slice(0, 3),
+    kcal: parseInt(String(r.nutrition?.calories ?? "").match(/\d+/)?.[0], 10) || 0,
+    protein: parseInt(String(r.nutrition?.proteinContent ?? "").match(/\d+/)?.[0], 10) || 0
+  };
+}
+
+/* Best-effort parse of a pasted recipe blob (user reviews it in the form) */
+function parseDurationText(s){
+  const t = String(s ?? "").toLowerCase();
+  const h = t.match(/(\d+)\s*h(?:ou)?rs?/)?.[1];
+  const m = t.match(/(\d+)\s*m(?:in(?:ute)?s?)?/)?.[1];
+  if (h || m) return (+h || 0) * 60 + (+m || 0);
+  return parseInt(t.match(/\d+/)?.[0], 10) || 0;
+}
+function parseRecipeText(text){
+  const lines = String(text ?? "").split("\n").map(l => l.replace(/^[-*•>#]+\s*/, "").trim());
+  const isIngHead = l => /^ingredients\b\s*:?\s*$/i.test(l);
+  const isStepHead = l => /^(method|instructions|directions|steps|preparation|to make)\b\s*:?\s*$/i.test(l);
+  const isMetaLine = l => /^(serves|servings|yield|makes|prep|cook|total|ready)\b/i.test(l);
+
+  const full = lines.join("\n");
+  const servings = parseInt(full.match(/(?:serves|servings?|yield|makes)\s*:?\s*(\d+)/i)?.[1], 10) || 0;
+  const prepMins = parseDurationText(full.match(/prep(?:aration)?(?:\s*time)?\s*:?\s*([^\n|·]+)/i)?.[1]);
+  const cookMins = parseDurationText(full.match(/cook(?:ing)?(?:\s*time)?\s*:?\s*([^\n|·]+)/i)?.[1]);
+
+  const ingAt = lines.findIndex(isIngHead);
+  const stepAt = lines.findIndex(isStepHead);
+  const title = lines.find(l => l && !isIngHead(l) && !isStepHead(l) && !isMetaLine(l) && l.length < 90) || "";
+
+  let ingredients = [], steps = [], summary = [];
+  if (ingAt !== -1){
+    const ingEnd = stepAt > ingAt ? stepAt : lines.length;
+    ingredients = lines.slice(ingAt + 1, ingEnd).filter(l => l && !isMetaLine(l));
+    steps = stepAt !== -1 ? lines.slice(stepAt + 1).filter(Boolean) : [];
+    summary = lines.slice(lines.indexOf(title) + 1, ingAt).filter(l => l && !isMetaLine(l) && !isStepHead(l));
+  } else {
+    // no headings: quantities → ingredients, longer prose → steps
+    for (const l of lines){
+      if (!l || l === title || isMetaLine(l)) continue;
+      const p = parseIngredient(l);
+      if (p && p.kind === "qty") ingredients.push(l);
+      else if (l.length > 30) steps.push(l);
+      else ingredients.push(l);
+    }
+  }
+  steps = steps.map(l => l.replace(/^\d+[.)]\s*/, ""));
+  return {
+    title, summary: summary.join(" ").slice(0, 240),
+    emoji: guessEmoji(title), baseServings: servings,
+    prepMins, cookMins, ingredients, steps, tags: [], kcal: 0, protein: 0
+  };
+}
+
+async function fetchPage(url){
+  const attempts = [url, CORS_PROXY + encodeURIComponent(url)];
+  let lastErr;
+  for (const u of attempts){
+    try {
+      const opts = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? {signal: AbortSignal.timeout(15000)} : {};
+      const res = await fetch(u, opts);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.text();
+    } catch (e){ lastErr = e; }
+  }
+  throw lastErr || new Error("fetch failed");
+}
+
+/* Claude-powered import — uses the API key stored in Dinner Fund's settings */
+const AI_RECIPE_SCHEMA = {
+  type: "object",
+  properties: {
+    title: {type: "string", description: "The recipe name"},
+    summary: {type: "string", description: "One or two sentences saying what the dish is"},
+    emoji: {type: "string", description: "One food emoji that best represents the dish"},
+    baseServings: {type: "integer", description: "How many servings the recipe makes; use 2 if unstated"},
+    prepMins: {type: "integer", description: "Preparation time in minutes; 0 if unknown"},
+    cookMins: {type: "integer", description: "Cooking time in minutes; 0 if unknown"},
+    ingredients: {type: "array", items: {type: "string"}, description: "One ingredient per line, each starting with the quantity where known (e.g. '2 tbsp olive oil', '400g spaghetti'). A group heading is a line ending with ':'"},
+    steps: {type: "array", items: {type: "string"}, description: "The method, one step per line, without numbering"},
+    tags: {type: "array", items: {type: "string"}, description: "1-3 short category tags like Dinner, Pasta"},
+    kcalPerServing: {type: "integer", description: "Calories per single serving — the stated value, or a realistic estimate; 0 only if impossible"},
+    proteinPerServing: {type: "integer", description: "Grams of protein per single serving — stated or estimated; 0 only if impossible"}
+  },
+  required: ["title", "summary", "emoji", "baseServings", "prepMins", "cookMins", "ingredients", "steps", "tags", "kcalPerServing", "proteinPerServing"],
+  additionalProperties: false
+};
+
+async function claudeImport(src){
+  const messages = [{
+    role: "user",
+    content: src.url
+      ? `Fetch this recipe page and extract the recipe from it: ${src.url}`
+      : `Extract the recipe from this text:\n\n${String(src.text).slice(0, 30000)}`
+  }];
+  const body = {
+    model: AI_MODEL,
+    max_tokens: 16000,
+    fallbacks: "default",
+    output_config: {effort: "low", format: {type: "json_schema", schema: AI_RECIPE_SCHEMA}},
+    messages
+  };
+  if (src.url) body.tools = [{type: "web_fetch_20260209", name: "web_fetch", max_uses: 3, max_content_tokens: 50000}];
+
+  for (let round = 0; round < 4; round++){
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": anthropicKey(),
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+        "anthropic-beta": "server-side-fallback-2026-07-01"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok){
+      throw new Error(
+        res.status === 401 ? "That API key was rejected — check it in Dinner Fund's settings." :
+        res.status === 429 ? "Rate limited — give it a moment and try again." :
+        res.status >= 500 ? "Anthropic's API is having a moment — try again shortly." :
+        `The API returned an error (${res.status}).`);
+    }
+    const data = await res.json();
+    if (data.stop_reason === "pause_turn"){ body.messages = [...messages, {role: "assistant", content: data.content}]; continue; }
+    if (data.stop_reason === "refusal") throw new Error("Claude declined this one — try pasting the recipe text instead.");
+    const textBlock = (data.content || []).find(b => b.type === "text");
+    if (!textBlock) throw new Error("No recipe came back — try pasting the text instead.");
+    return JSON.parse(textBlock.text);
+  }
+  throw new Error("That page took too long to read — try pasting the text instead.");
+}
+
+/* ---------- import panel glue ---------- */
+function setImpStatus(msg){ const el = $("#impStatus"); if (el) el.textContent = msg; }
+function busyBtn(sel, on, label){ const b = $(sel); if (b){ b.disabled = on; if (label) b.textContent = label; } }
+
+function fillForm(p){
+  const set = (sel, v) => { const el = $(sel); if (el && v != null && v !== "" && v !== 0) el.value = v; };
+  set("#f-title", p.title);
+  set("#f-summary", p.summary);
+  if (p.emoji) $("#f-emoji").value = p.emoji;
+  if (p.baseServings > 0) $("#f-serves").value = Math.min(99, Math.round(p.baseServings));
+  set("#f-prep", p.prepMins > 0 ? Math.round(p.prepMins) : "");
+  set("#f-cook", p.cookMins > 0 ? Math.round(p.cookMins) : "");
+  set("#f-kcal", p.kcal > 0 ? Math.min(5000, Math.round(p.kcal)) : "");
+  set("#f-protein", p.protein > 0 ? Math.min(400, Math.round(p.protein)) : "");
+  if (p.ingredients?.length) $("#f-ing").value = p.ingredients.join("\n");
+  if (p.steps?.length) $("#f-steps").value = p.steps.join("\n");
+  if (p.tags?.length) $("#f-tags").value = p.tags.join(", ");
+  if (p.source && !$("#f-notes").value) $("#f-notes").value = p.source;
+  refreshPreview();
+}
+
+function importDone(p, via){
+  fillForm(p);
+  const box = $("#importBox");
+  if (box) box.open = false;
+  setImpStatus(`✓ Imported${via ? ` ${via}` : ""} — check it over, tweak anything, then Save.`);
+  toast("Recipe imported ✓");
+}
+
+function aiToPartial(ai, url){
+  return {
+    title: ai.title, summary: ai.summary, emoji: ai.emoji || guessEmoji(ai.title),
+    baseServings: ai.baseServings, prepMins: ai.prepMins, cookMins: ai.cookMins,
+    ingredients: ai.ingredients, steps: ai.steps, tags: ai.tags,
+    kcal: ai.kcalPerServing, protein: ai.proteinPerServing,
+    source: url ? "From " + hostnameOf(url) : ""
+  };
+}
+
+async function importFromUrl(){
+  const url = $("#imp-url").value.trim();
+  if (!/^https?:\/\//i.test(url)){ setImpStatus("Paste a full link starting with https://"); return; }
+  busyBtn("#impUrlBtn", true, "Fetching…");
+  setImpStatus("Fetching the page…");
+  try {
+    let page = null;
+    try { page = await fetchPage(url); } catch { /* fall through to Claude if available */ }
+    const rec = page ? extractRecipeFromJsonLd(page) : null;
+    if (rec){
+      rec.source = "From " + hostnameOf(url);
+      importDone(rec);
+    } else if (anthropicKey()){
+      setImpStatus(page ? "No recipe data on that page — asking Claude to read it…" : "Couldn't fetch it from here — asking Claude to read it…");
+      importDone(aiToPartial(await claudeImport({url}), url), "with Claude ✨");
+    } else {
+      setImpStatus(page
+        ? "That page doesn't carry recipe data this app can read. Copy the recipe text and paste it below instead."
+        : "⚠️ Couldn't reach that page from here. Copy the recipe text and paste it below instead.");
+    }
+  } catch (e){
+    setImpStatus("⚠️ " + (e.message || "Import failed — try pasting the text instead."));
+  } finally {
+    busyBtn("#impUrlBtn", false, "Fetch");
+  }
+}
+
+async function importAiUrl(url){
+  busyBtn("#impAiBtn", true, "✨ Reading…");
+  setImpStatus("Asking Claude to read the page…");
+  try {
+    importDone(aiToPartial(await claudeImport({url}), url), "with Claude ✨");
+  } catch (e){
+    setImpStatus("⚠️ " + (e.message || "Import failed"));
+  } finally {
+    busyBtn("#impAiBtn", false, "✨ Import with Claude");
+  }
+}
+
+async function importFromText(useAi){
+  const text = $("#imp-text").value.trim();
+  if (!text){ setImpStatus("Paste the recipe text first — title, ingredients and method."); return; }
+  if (useAi){
+    busyBtn("#impAiBtn", true, "✨ Reading…");
+    setImpStatus("Asking Claude to read your paste…");
+    try {
+      importDone(aiToPartial(await claudeImport({text})), "with Claude ✨");
+    } catch (e){
+      setImpStatus("⚠️ " + (e.message || "Import failed"));
+    } finally {
+      busyBtn("#impAiBtn", false, "✨ Import with Claude");
+    }
+  } else {
+    const rec = parseRecipeText(text);
+    if (!rec.title && !rec.ingredients.length){ setImpStatus("Couldn't make sense of that — try the ✨ Claude import, or fill the form in by hand."); return; }
+    importDone(rec);
+  }
 }
 
 /* =====================================================================
@@ -873,6 +1224,26 @@ function renderEdit(r){
       <h2>${isNew ? "Add a recipe" : "Edit recipe"}</h2>
     </div>
 
+    ${isNew ? `<details class="importbox" id="importBox" open>
+      <summary>⚡&nbsp; Import a recipe — from a link, or paste the whole thing</summary>
+      ${crossApp ? `<label for="imp-url">From the web</label>
+      <div class="improw">
+        <input type="url" id="imp-url" inputmode="url" placeholder="https://www.bbcgoodfood.com/recipes/…" autocomplete="off">
+        <button type="button" class="btn" data-action="import-url" id="impUrlBtn">Fetch</button>
+      </div>` : ""}
+      <label for="imp-text">${crossApp ? "Or paste the recipe text" : "Paste the recipe text"}</label>
+      <textarea id="imp-text" rows="6" placeholder="Paste everything — title, ingredients, method — straight from a website, note, or message."></textarea>
+      <div class="improw2">
+        <button type="button" class="btn" data-action="import-text">Read pasted text</button>
+        ${anthropicKey() ? `<button type="button" class="btn" data-action="import-ai" id="impAiBtn">✨ Import with Claude</button>` : ""}
+      </div>
+      <p class="hint" id="impStatus">${anthropicKey()
+        ? "Links are read automatically; ✨ Claude handles tricky pages and messy pastes, and estimates the nutrition."
+        : crossApp
+          ? "Links with standard recipe data import automatically. Tip: add an Anthropic API key in Dinner Fund's settings and ✨ Claude can read tricky pages and estimate nutrition too."
+          : "Whatever you paste is read into the form below for you to check."}</p>
+    </details>` : ""}
+
     <label for="f-title">Name</label>
     <input type="text" id="f-title" required placeholder="e.g. Chicken Pie" value="${esc(r?.title || "")}">
 
@@ -1069,6 +1440,17 @@ document.addEventListener("click", e => {
 
     case "log-fund": if (r) logToDinnerFund(r); break;
 
+    case "import-url": importFromUrl(); break;
+    case "import-text": importFromText(false); break;
+    case "import-ai": {
+      const text = $("#imp-text").value.trim();
+      const url = $("#imp-url")?.value.trim() || "";
+      if (text) importFromText(true);
+      else if (/^https?:\/\//i.test(url)) importAiUrl(url);
+      else setImpStatus("Give ✨ Claude something to read — a link above or pasted text.");
+      break;
+    }
+
     case "tag-filter": view.tag = t.dataset.tag || null; refreshGrid(); break;
     case "clear-search": view.q = ""; const s = $("#search"); if (s){ s.value = ""; s.focus(); } refreshGrid(); break;
 
@@ -1098,6 +1480,11 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => {
   if (e.target.id === "search"){ view.q = e.target.value.trim(); refreshGrid(); }
   if (e.target.id === "f-ing") refreshPreviewSoon();
+});
+
+// Enter in the import URL field fetches instead of submitting the whole form
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "imp-url"){ e.preventDefault(); importFromUrl(); }
 });
 
 document.addEventListener("submit", e => {
@@ -1145,7 +1532,8 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
 }
 
 /* test hooks (harmless in normal use) */
-window.__kitchen = {parseIngredient, scaledLineText, fracFmt, fmtQty};
+window.__kitchen = {parseIngredient, scaledLineText, fracFmt, fmtQty,
+  parseRecipeText, extractRecipeFromJsonLd, parseISODuration, guessEmoji};
 </script>
 </body>
 </html>
