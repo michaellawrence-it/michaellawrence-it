@@ -17,6 +17,14 @@ Most calorie apps hand you one big daily number, you spend it as the day goes, a
 
 A per-night override lets you grow or shrink tonight's reserve (±50) without touching your defaults — big pizza Friday, lighter Sunday.
 
+## Linked with Mike's Kitchen 🍳
+
+Dinner Fund and the wall-iPad cookbook next door ([`../recipe-app/`](../recipe-app/)) share the same browser storage, so they act as one app:
+
+- The 🍳 button in the header jumps to the recipe book (and its 🍕 button jumps back). Both manifests share a scope, so the hop stays inside the installed home-screen app.
+- Any Kitchen recipe with a per-serving kcal figure appears here under **🍳 My kitchen** in the recipe list — loggable with one tap, with a link to the full cooking view.
+- Cooking from the Kitchen app? Its **Log 1 serving to Dinner Fund** button writes straight into today's log here, in the right meal slot for the time of day.
+
 ## Running it
 
 It's a dependency-free static site (vanilla HTML/CSS/JS — no build step).

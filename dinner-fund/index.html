@@ -23,9 +23,12 @@
         <span class="brand-mark" aria-hidden="true">🍕</span>
         <h1>Dinner Fund</h1>
       </div>
-      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm8.94 3.6c0-.5-.05-.98-.13-1.45l2-1.56-2-3.46-2.36.95a7.9 7.9 0 0 0-2.51-1.45L15.58 2h-4l-.36 2.52c-.9.32-1.75.81-2.5 1.45l-2.37-.95-2 3.46 2 1.56a8.2 8.2 0 0 0 0 2.9l-2 1.57 2 3.46 2.36-.95c.76.64 1.6 1.13 2.51 1.45L11.58 21h4l.36-2.53a7.9 7.9 0 0 0 2.5-1.45l2.37.95 2-3.46-2-1.56c.08-.47.13-.96.13-1.45Z" transform="translate(-1.58 .5)"/></svg>
-      </button>
+      <div class="top-actions">
+        <a class="icon-btn kitchen-link" href="../recipe-app/" title="Mike's Kitchen — the recipe book" aria-label="Open Mike's Kitchen recipes">🍳</a>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm8.94 3.6c0-.5-.05-.98-.13-1.45l2-1.56-2-3.46-2.36.95a7.9 7.9 0 0 0-2.51-1.45L15.58 2h-4l-.36 2.52c-.9.32-1.75.81-2.5 1.45l-2.37-.95-2 3.46 2 1.56a8.2 8.2 0 0 0 0 2.9l-2 1.57 2 3.46 2.36-.95c.76.64 1.6 1.13 2.51 1.45L11.58 21h4l.36-2.53a7.9 7.9 0 0 0 2.5-1.45l2.37.95 2-3.46-2-1.56c.08-.47.13-.96.13-1.45Z" transform="translate(-1.58 .5)"/></svg>
+        </button>
+      </div>
     </header>
 
     <p class="dateline" id="dateLine">Today</p>
@@ -167,11 +170,12 @@
         <button class="chip" data-action="rcat" data-cat="thigh">Chicken thigh</button>
         <button class="chip" data-action="rcat" data-cat="steak">Steak</button>
         <button class="chip" data-action="rcat" data-cat="rice">Rice bowls</button>
+        <button class="chip" data-action="rcat" data-cat="kitchen" id="rcatKitchen" hidden>🍳 My kitchen</button>
       </div>
 
       <div id="recipeList"></div>
 
-      <p class="fineprint">Per single serving, rounded. Log with the meal selected up in “Log food” — dinners land in the fund automatically when Dinner is picked.</p>
+      <p class="fineprint">Per single serving, rounded. Log with the meal selected up in “Log food” — dinners land in the fund automatically when Dinner is picked. Recipes you save in <a class="plainlink" href="../recipe-app/">Mike's Kitchen</a> with a kcal figure show up here under 🍳 My kitchen.</p>
     </section>
 
     <!-- ============ Today's entries ============ -->

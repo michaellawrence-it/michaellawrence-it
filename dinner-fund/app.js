@@ -88,6 +88,35 @@
   const $ = (id) => document.getElementById(id);
   const fmt = (n) => Math.round(n).toLocaleString("en-US");
 
+  /* ---------- Mike's Kitchen link-up ----------
+     The recipe app next door (../recipe-app/) stores its cookbook in
+     localStorage under "kitchen.recipes.v1". Any of those recipes with a
+     per-serving kcal figure joins the library below under 🍳 My kitchen. */
+  const KITCHEN_KEY = "kitchen.recipes.v1";
+  const KITCHEN_APP = "../recipe-app/";
+
+  function kitchenRecipes() {
+    try {
+      const data = JSON.parse(store.getItem(KITCHEN_KEY) || "null");
+      if (!data || !Array.isArray(data.recipes)) return [];
+      return data.recipes
+        .filter((r) => r && typeof r.title === "string" && r.kcal > 0)
+        .map((r) => ({
+          cat: "kitchen",
+          emoji: typeof r.emoji === "string" && r.emoji ? r.emoji : "🍽",
+          name: r.title,
+          kcal: Math.round(r.kcal),
+          p: Math.round(r.protein) || 0,
+          ing: (Array.isArray(r.ingredients) ? r.ingredients : [])
+            .map(String).filter((l) => l.trim() && !l.trim().endsWith(":"))
+            .slice(0, 6).join(" · "),
+          kitchenId: r.id,
+        }));
+    } catch {
+      return [];
+    }
+  }
+
   /* ---------- storage (with in-memory fallback) ---------- */
 
   let storageOk = true;
@@ -378,24 +407,36 @@
   }
 
   let recipeCat = "All";
+  let recipeView = []; // RECIPES + kitchen imports, as last rendered (log-recipe indexes this)
 
   function renderRecipes() {
+    const fromKitchen = kitchenRecipes();
+    $("rcatKitchen").hidden = fromKitchen.length === 0;
+    if (recipeCat === "kitchen" && fromKitchen.length === 0) recipeCat = "All";
+    recipeView = RECIPES.concat(fromKitchen);
     document.querySelectorAll('[data-action="rcat"]').forEach((b) =>
       b.classList.toggle("is-on", b.dataset.cat === recipeCat));
-    $("recipeList").innerHTML = RECIPES.map((r, i) => {
+    $("recipeList").innerHTML = recipeView.map((r, i) => {
       if (recipeCat !== "All" && r.cat !== recipeCat) return "";
       const dense = (r.p * 4) / r.kcal >= 0.35;
+      const marks =
+        (r.kitchenId ? ' <span class="r-kitchen" title="From Mike&#39;s Kitchen">🍳</span>' : "") +
+        (dense ? ' <span class="r-dense" title="35%+ of calories from protein">💪</span>' : "");
+      const body = r.kitchenId
+        ? `<p class="r-ing">${escapeHtml(r.ing)}</p>
+           <a class="r-open" href="${KITCHEN_APP}#r=${encodeURIComponent(r.kitchenId)}">Open the full recipe in Mike's Kitchen ↗</a>`
+        : `<p class="r-ing">${r.ing}</p>
+           <ol class="r-steps">${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol>`;
       return `<details class="recipe">
         <summary>
-          <span class="r-emoji" aria-hidden="true">${r.emoji}</span>
-          <span class="r-name">${r.name}${dense ? ' <span class="r-dense" title="35%+ of calories from protein">💪</span>' : ""}</span>
+          <span class="r-emoji" aria-hidden="true">${escapeHtml(r.emoji)}</span>
+          <span class="r-name">${escapeHtml(r.name)}${marks}</span>
           <span class="r-macros">${fmt(r.kcal)} · ${fmt(r.p)} g</span>
-          <button class="r-add" data-action="log-recipe" data-i="${i}" aria-label="Log ${r.name}">+</button>
+          <button class="r-add" data-action="log-recipe" data-i="${i}" aria-label="Log ${escapeHtml(r.name)}">+</button>
         </summary>
         <div class="r-body">
-          <p class="r-ing">${r.ing}</p>
-          <ol class="r-steps">${r.steps.map((s) => `<li>${s}</li>`).join("")}</ol>
-          <button class="btn btn-primary btn-sm" data-action="log-recipe" data-i="${i}">Log it · ${fmt(r.kcal)} kcal</button>
+          ${body}
+          <button class="btn btn-primary btn-sm" data-action="log-recipe" data-i="${i}">Log it · ${fmt(r.kcal)} kcal${r.kitchenId ? " (1 serving)" : ""}</button>
         </div>
       </details>`;
     }).join("");
@@ -785,7 +826,7 @@
     else if (a === "log-slices") addEntry(`Pizza · ${sliceCount} slice${sliceCount === 1 ? "" : "s"}`, sliceCount * SLICE_KCAL, "dinner", sliceCount * SLICE_PROT);
     else if (a === "log-recipe") {
       ev.preventDefault(); // a + button inside <summary> must not toggle the details
-      const r = RECIPES[Number(btn.dataset.i)];
+      const r = recipeView[Number(btn.dataset.i)];
       if (r) addEntry(r.name, r.kcal, selectedSlot, r.p);
     }
     else if (a === "rcat") { recipeCat = btn.dataset.cat; renderRecipes(); }
@@ -870,6 +911,30 @@
       renderAll();
     }
   }, 30000);
+
+  /* ---------- stay in sync with Mike's Kitchen ---------- */
+
+  function adoptFreshState() {
+    const fresh = load();
+    if (fresh) {
+      state.settings = { ...DEFAULTS, ...fresh.settings };
+      state.days = fresh.days;
+    }
+  }
+
+  // another tab/window (e.g. the recipe app logging a cooked meal) wrote to storage
+  window.addEventListener("storage", (ev) => {
+    if (ev.key === KITCHEN_KEY) renderRecipes();
+    else if (ev.key === LS_KEY) { adoptFreshState(); renderAll(); }
+  });
+
+  // restored from the back-forward cache after a trip to the recipe app
+  window.addEventListener("pageshow", (ev) => {
+    if (!ev.persisted) return;
+    adoptFreshState();
+    renderRecipes();
+    renderAll();
+  });
 
   /* ---------- boot ---------- */
 

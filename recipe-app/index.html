@@ -59,6 +59,9 @@ h1,h2,h3{font-family:var(--serif); margin:0; font-weight:700; letter-spacing:-.0
   transition:transform .08s ease, box-shadow .15s ease, background .15s ease;
 }
 .btn:active{transform:scale(.96)}
+a.btn{text-decoration:none}
+.sum-actions{margin-top:14px}
+.sum-actions .btn{font-size:15px}
 .btn-primary{background:var(--brand); border-color:transparent; color:#fff; box-shadow:var(--shadow)}
 .btn-primary:active{background:var(--brand-deep)}
 .btn-quiet{background:transparent; border-color:transparent; color:var(--ink2)}
@@ -451,7 +454,7 @@ function ingredientHTML(raw, f, i, opts){
    ===================================================================== */
 const SEEDS = [
   {
-    id:"seed-bolognese", emoji:"🍝", title:"Spaghetti Bolognese",
+    id:"seed-bolognese", kcal:640, protein:38, emoji:"🍝", title:"Spaghetti Bolognese",
     summary:"A rich, slow-simmered beef and tomato ragù over spaghetti — proper weeknight comfort food.",
     tags:["Pasta","Dinner"], baseServings:4, prepMins:15, cookMins:45,
     ingredients:[
@@ -472,7 +475,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-pancakes", emoji:"🥞", title:"Fluffy Pancakes",
+    id:"seed-pancakes", kcal:620, protein:16, emoji:"🥞", title:"Fluffy Pancakes",
     summary:"Thick, fluffy American-style pancakes — one bowl, a hot pan, and a tall stack with syrup.",
     tags:["Breakfast","Sweet"], baseServings:2, prepMins:10, cookMins:15,
     ingredients:[
@@ -491,7 +494,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-full-english", emoji:"🍳", title:"Full English Breakfast",
+    id:"seed-full-english", kcal:950, protein:40, emoji:"🍳", title:"Full English Breakfast",
     summary:"The works — sausages, bacon, eggs, beans, mushrooms and toast, all hot on one plate.",
     tags:["Breakfast"], baseServings:2, prepMins:5, cookMins:20,
     ingredients:[
@@ -511,7 +514,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-french-toast", emoji:"🍞", title:"French Toast",
+    id:"seed-french-toast", kcal:560, protein:14, emoji:"🍞", title:"French Toast",
     summary:"Golden pan-fried brioche soaked in vanilla-cinnamon custard — weekend breakfast at its best.",
     tags:["Breakfast","Sweet"], baseServings:2, prepMins:10, cookMins:10,
     ingredients:[
@@ -530,7 +533,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-overnight-oats", emoji:"🥣", title:"Overnight Oats",
+    id:"seed-overnight-oats", kcal:370, protein:16, emoji:"🥣", title:"Overnight Oats",
     summary:"Creamy no-cook oats made the night before — grab a jar and breakfast is done.",
     tags:["Breakfast","Fast"], baseServings:1, prepMins:5, cookMins:0,
     ingredients:[
@@ -547,7 +550,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-avocado-toast", emoji:"🥑", title:"Smashed Avocado Toast",
+    id:"seed-avocado-toast", kcal:680, protein:20, emoji:"🥑", title:"Smashed Avocado Toast",
     summary:"Charred sourdough with lemony smashed avocado, fried eggs and a pinch of chilli.",
     tags:["Breakfast","Fast","Veggie"], baseServings:1, prepMins:10, cookMins:5,
     ingredients:[
@@ -564,7 +567,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-curry", emoji:"🍛", title:"Easy Chicken Curry",
+    id:"seed-curry", kcal:700, protein:35, emoji:"🍛", title:"Easy Chicken Curry",
     summary:"A gentle coconut chicken curry with everyday spices — one pan and ready in under an hour.",
     tags:["Dinner","Spicy"], baseServings:4, prepMins:15, cookMins:30,
     ingredients:[
@@ -584,7 +587,7 @@ const SEEDS = [
     createdAt:0, updatedAt:0
   },
   {
-    id:"seed-greek-salad", emoji:"🥗", title:"Greek Salad",
+    id:"seed-greek-salad", kcal:390, protein:9, emoji:"🥗", title:"Greek Salad",
     summary:"Crunchy cucumber, ripe tomatoes, olives and feta in a simple oregano dressing — no cooking required.",
     tags:["Salad","Fast","Veggie"], baseServings:2, prepMins:15, cookMins:0,
     ingredients:[
@@ -627,6 +630,39 @@ function saveDB(){
 }
 const findRecipe = id => db.recipes.find(r => r.id === id);
 const baseServ = r => (r.baseServings > 0 ? r.baseServings : 2);
+
+/* =====================================================================
+   Dinner Fund bridge — writes a meal into ../dinner-fund/'s day log.
+   Schema must match dinner-fund/app.js (localStorage "dinnerfund.v1").
+   ===================================================================== */
+const DF_KEY = "dinnerfund.v1";
+const DF_DEFAULTS = {target: 2000, reserve: 900, proteinGoal: 140, apiKey: "", welcomed: false};
+const crossApp = !window.__NO_CROSSAPP; // the artifact preview build sets this flag
+
+function dfSlot(){
+  const h = new Date().getHours();
+  return h < 11 ? "breakfast" : h < 15 ? "lunch" : h < 17 ? "snack" : "dinner";
+}
+function logToDinnerFund(r){
+  if (!(r.kcal > 0)) return;
+  let df = null;
+  try { df = JSON.parse(localStorage.getItem(DF_KEY) || "null"); } catch {}
+  if (!df || typeof df !== "object" || !df.settings || !df.days) df = {settings: {...DF_DEFAULTS}, days: {}};
+  const key = new Date().toLocaleDateString("en-CA"); // Dinner Fund's local day key
+  if (!df.days[key]) df.days[key] = {entries: []};
+  const slot = dfSlot();
+  df.days[key].entries.push({
+    id: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    name: r.title.slice(0, 60),
+    kcal: Math.round(r.kcal),
+    p: Math.round(r.protein) || 0,
+    slot,
+    t: new Date().toISOString()
+  });
+  try { localStorage.setItem(DF_KEY, JSON.stringify(df)); }
+  catch { toast("⚠️ Couldn't save to Dinner Fund — storage is full"); return; }
+  toast(`🍕 Logged to Dinner Fund · ${Math.round(r.kcal)} kcal (${slot})`);
+}
 
 /* =====================================================================
    Screen wake lock (keeps the wall iPad from sleeping mid-recipe)
@@ -697,7 +733,7 @@ function cardHTML(r){
     <span class="emoji">${esc(r.emoji || "🍽️")}</span>
     <h3>${esc(r.title)}</h3>
     <span class="sum">${esc(r.summary || "")}</span>
-    <span class="meta">${total ? `<span>⏱ ${fmtMins(total)}</span>` : ""}<span>Serves ${baseServ(r)}</span>${tags}</span>
+    <span class="meta">${total ? `<span>⏱ ${fmtMins(total)}</span>` : ""}<span>Serves ${baseServ(r)}</span>${r.kcal > 0 ? `<span>${Math.round(r.kcal)} kcal</span>` : ""}${tags}</span>
   </button>`;
 }
 function gridHTML(){
@@ -721,6 +757,7 @@ function renderHome(){
   <header class="home-head">
     <div class="row1">
       <h1>${esc(APP_NAME)}</h1>
+      ${crossApp ? `<a class="btn" href="../dinner-fund/" title="Dinner Fund — calorie budget">🍕<span class="hide-sm">&nbsp;Dinner&nbsp;Fund</span></a>` : ""}
       <button class="btn btn-icon" data-action="open-modal" aria-label="Import or export recipes">⇅</button>
       <button class="btn btn-primary" data-action="add-recipe">＋&nbsp;Add<span class="hide-sm">&nbsp;recipe</span></button>
     </div>
@@ -751,10 +788,13 @@ function renderCook(r){
   const meta = [
     r.prepMins ? `<span>Prep ${fmtMins(r.prepMins)}</span>` : "",
     r.cookMins ? `<span>Cook ${fmtMins(r.cookMins)}</span>` : "",
-    !r.prepMins && !r.cookMins && total === 0 ? "" : "",
     `<span>Recipe serves ${baseServ(r)}</span>`,
+    r.kcal > 0 ? `<span>≈ ${Math.round(r.kcal)} kcal${r.protein > 0 ? ` · ${Math.round(r.protein)} g protein` : ""} / serving</span>` : "",
     ...(r.tags || []).map(t => `<span>${esc(t)}</span>`)
   ].join("");
+  const fundBtn = crossApp && r.kcal > 0
+    ? `<div class="sum-actions"><button class="btn" data-action="log-fund">🍕&nbsp; Log 1 serving to Dinner Fund</button></div>`
+    : "";
   const nIng = (r.ingredients || []).filter(l => { const p = parseIngredient(l); return p && p.kind !== "header"; }).length;
 
   $("#app").innerHTML = `
@@ -773,6 +813,7 @@ function renderCook(r){
           <h2>${esc(r.title)}</h2>
           ${r.summary ? `<p class="desc">${esc(r.summary)}</p>` : ""}
           <div class="sum-meta">${meta}</div>
+          ${fundBtn}
         </div>
       </div>
       <div class="stepper">
@@ -855,8 +896,17 @@ function renderEdit(r){
         <label for="f-cook">Cook (min)</label>
         <input type="number" id="f-cook" min="0" max="999" inputmode="numeric" value="${esc(r?.cookMins ?? "")}" placeholder="30">
       </div>
+      <div>
+        <label for="f-kcal">Kcal / serving</label>
+        <input type="number" id="f-kcal" min="0" max="5000" inputmode="numeric" value="${esc(r?.kcal ?? "")}" placeholder="optional">
+      </div>
+      <div>
+        <label for="f-protein">Protein g / serv.</label>
+        <input type="number" id="f-protein" min="0" max="400" inputmode="numeric" value="${esc(r?.protein ?? "")}" placeholder="optional">
+      </div>
     </div>
     <div class="emojirow">${EMOJI_QUICK.map(e => `<button type="button" data-action="pick-emoji" data-emoji="${e}">${e}</button>`).join("")}</div>
+    ${crossApp ? `<p class="hint">Kcal & protein are per serving and optional — fill them in and this recipe can be logged straight into <b>Dinner Fund</b> (and shows up in its recipe list).</p>` : ""}
 
     <label for="f-ing">Ingredients — one per line</label>
     <textarea id="f-ing" rows="10" placeholder="400g spaghetti&#10;2 tbsp olive oil&#10;½ cup red wine&#10;For the sauce:&#10;Salt, to taste">${esc((r?.ingredients || []).join("\n"))}</textarea>
@@ -908,6 +958,8 @@ function readForm(existing){
     baseServings: serves,
     prepMins: Math.max(0, parseInt($("#f-prep").value, 10) || 0),
     cookMins: Math.max(0, parseInt($("#f-cook").value, 10) || 0),
+    kcal: Math.min(5000, Math.max(0, parseInt($("#f-kcal").value, 10) || 0)) || undefined,
+    protein: Math.min(400, Math.max(0, parseInt($("#f-protein").value, 10) || 0)) || undefined,
     ingredients: cleanLines($("#f-ing").value),
     steps: cleanLines($("#f-steps").value).map(l => l.replace(/^\d+[.)]\s*/, "")),
     notes: $("#f-notes").value.trim(),
@@ -947,6 +999,8 @@ function importJSON(text){
       baseServings: raw.baseServings > 0 ? Math.min(99, Math.round(raw.baseServings)) : 2,
       prepMins: raw.prepMins > 0 ? Math.round(raw.prepMins) : 0,
       cookMins: raw.cookMins > 0 ? Math.round(raw.cookMins) : 0,
+      kcal: raw.kcal > 0 ? Math.min(5000, Math.round(raw.kcal)) : undefined,
+      protein: raw.protein > 0 ? Math.min(400, Math.round(raw.protein)) : undefined,
       ingredients: Array.isArray(raw.ingredients) ? raw.ingredients.filter(x => typeof x === "string") : [],
       steps: Array.isArray(raw.steps) ? raw.steps.filter(x => typeof x === "string") : [],
       notes: typeof raw.notes === "string" ? raw.notes : "",
@@ -1013,6 +1067,8 @@ document.addEventListener("click", e => {
       wakeLock ? releaseWake() : acquireWake();
       break;
 
+    case "log-fund": if (r) logToDinnerFund(r); break;
+
     case "tag-filter": view.tag = t.dataset.tag || null; refreshGrid(); break;
     case "clear-search": view.q = ""; const s = $("#search"); if (s){ s.value = ""; s.focus(); } refreshGrid(); break;
 
@@ -1072,7 +1128,17 @@ $("#modal").addEventListener("click", e => { if (e.target.id === "modal") $("#mo
    Boot
    ===================================================================== */
 loadDB();
-go(history.state || {v: "home"}, false);
+// deep link from Dinner Fund's recipe list: …/recipe-app/#r=<id>
+function consumeDeepLink(){
+  const m = location.hash.match(/^#r=(.+)$/);
+  const id = m ? decodeURIComponent(m[1]) : null;
+  if (!id || !findRecipe(id)) return false;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+  go({v: "cook", id}, false);
+  return true;
+}
+window.addEventListener("hashchange", consumeDeepLink); // arriving via bfcache-restored links
+if (!consumeDeepLink()) go(history.state || {v: "home"}, false);
 
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
   addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));

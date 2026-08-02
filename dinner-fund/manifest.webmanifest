@@ -3,7 +3,7 @@
   "short_name": "DinnerFund",
   "description": "A calorie budget that protects your cheat dinner. Eat light by day, feast at night, stay on track.",
   "start_url": "./",
-  "scope": "./",
+  "scope": "../",
   "display": "standalone",
   "background_color": "#f9f9f7",
   "theme_color": "#f9f9f7",

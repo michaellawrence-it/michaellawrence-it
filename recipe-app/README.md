@@ -25,6 +25,21 @@ offline once loaded.
 - **Search + tag filters**, JSON export/import for backup, light & dark mode,
   installable as a home-screen app.
 
+## Linked with Dinner Fund 🍕
+
+This app and [Dinner Fund](../dinner-fund/) (the calorie-budget app) are one
+linked pair — same site, shared browser storage:
+
+- The 🍕 button in the header jumps to Dinner Fund; its 🍳 button jumps back.
+  Both apps share a PWA scope, so the hop stays inside the installed
+  home-screen app.
+- Give a recipe optional **kcal / protein per serving** (in the add/edit form)
+  and two things happen: a **Log 1 serving to Dinner Fund** button appears in
+  the cook view (it writes into today's food log, picking the meal slot by
+  time of day), and the recipe shows up in Dinner Fund's recipe list under
+  **🍳 My kitchen**, loggable from there with a link back to the full recipe.
+- Starter recipes ship with per-serving estimates already filled in.
+
 ## Putting it on the kitchen iPad
 
 1. **Host it with GitHub Pages** (easiest):

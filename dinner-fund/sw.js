@@ -1,5 +1,5 @@
 /* Dinner Fund service worker — network-first with offline fallback */
-const CACHE = "dinnerfund-v1";
+const CACHE = "dinnerfund-v2";
 const CORE = [
   "./",
   "./index.html",

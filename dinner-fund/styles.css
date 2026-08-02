@@ -760,3 +760,20 @@ dialog.lightbox {
   .hero-value { font-size: 46px; }
   .pizza-math { gap: 8px; }
 }
+
+/* ---------- Mike's Kitchen link-up ---------- */
+
+.top-actions { display: flex; align-items: center; gap: 2px; }
+.kitchen-link { text-decoration: none; }
+.kitchen-link:focus-visible { outline: 2px solid var(--day); outline-offset: 2px; }
+.r-kitchen { font-size: 13px; }
+.r-open {
+  display: inline-block;
+  margin: 2px 0 12px;
+  color: var(--day);
+  font-weight: 600;
+  font-size: 13.5px;
+  text-decoration: none;
+}
+.r-open:hover { text-decoration: underline; }
+.fineprint .plainlink { color: var(--muted); font-weight: 600; }

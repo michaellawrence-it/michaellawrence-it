@@ -1,5 +1,5 @@
 /* Mike's Kitchen — offline cache. Bump VERSION when app files change. */
-const VERSION = "kitchen-v1";
+const VERSION = "kitchen-v2";
 const CORE = [
   "./",
   "./index.html",
