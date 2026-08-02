@@ -8,7 +8,7 @@ M365 · Entra ID · Active Directory · Windows Server · PowerShell · Power Pl
 - **Identity automation** - PowerShell AD provisioning + attribute-driven Entra dynamic groups, so onboarding is zero-touch and least-privilege by default
 - **Power Platform systems** - a multi-role employee evaluation app (Dataverse, anniversary-triggered flows), HR approval workflows, an in-house phishing-simulation program
 - **Infrastructure** - Windows Server/Hyper-V hybrid, MDT zero-touch imaging, Intune device lifecycle
-- **A real lab, not a toy** - a self-built Hyper-V host running a Server 2025 domain (AD DS, isolated DNS/DHCP, PXE imaging, RemoteApp behind an internal CA) that mirrors production, plus a self-healing multi-container Docker media platform with automated health checks
+- **A real lab, not a toy** - a self-built Hyper-V host running a Server 2025 domain (AD DS, isolated DNS/DHCP, PXE imaging, RemoteApp behind an internal CA) that mirrors production
 
 **AutomateComply** (founder, in staging ahead of production): an HR compliance-automation service that packages these Power Platform workflows so a small business can run them in its own M365 tenant. [automatecomply.com](https://www.automatecomply.com)
 
@@ -21,7 +21,6 @@ TestOut Security Pro (2024) · Rutgers Cybersecurity Bootcamp (2023) · athenahe
 | [ad-onboarding-automation](https://github.com/michaellawrence-it/ad-onboarding-automation) | Manual account-creation errors eliminated; onboarding scaled 65→120 headcount with 0 added IT staff |
 | [powerapps-employee-evaluations](https://github.com/michaellawrence-it/powerapps-employee-evaluations) | Paper evaluation process replaced org-wide with a model-driven app + automated anniversary flows |
 | [hyperv-ad-lab](https://github.com/michaellawrence-it/hyperv-ad-lab) | Server 2025 domain on a self-built host - dual-vSwitch isolation, PXE imaging, RemoteApp over an internally-issued cert |
-| [homelab-media-stack](https://github.com/michaellawrence-it/homelab-media-stack) | Self-healing Docker media platform on a 13-drive layout - recovered end-to-end from a dynamic-disk failure |
 | [ad-computer-group-automation](https://github.com/michaellawrence-it/ad-computer-group-automation) | Event-driven: new AD computers auto-join LAPS/Intune/policy groups on Event 4741 - running in production |
 | [entra-dynamic-groups](https://github.com/michaellawrence-it/entra-dynamic-groups) | Department/role/location attributes drive all security-group membership |
 | [powerplatform-alm](https://github.com/michaellawrence-it/powerplatform-alm) | Dev → Sandbox → Production promotion for Power Platform solutions, with a validated rollback path |
