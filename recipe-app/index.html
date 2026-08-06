@@ -261,6 +261,36 @@ li.checked .ing-text{opacity:.42; text-decoration:line-through}
 }
 .editbar .grow{margin-left:auto}
 
+/* ---------- Dough calculator ---------- */
+.card-dough .plus{font-size:34px}
+.card-dough .subtxt{font-size:13.5px; color:var(--ink2); font-weight:500; margin-top:-4px}
+.dough-wrap{max-width:740px; margin:0 auto; padding:0 22px calc(50px + env(safe-area-inset-bottom))}
+.dough-head{display:flex; gap:16px; align-items:center; margin:4px 0 18px}
+.dough-head .emoji{flex:none; width:64px; height:64px; font-size:36px; background:var(--brand-soft2); border-radius:16px; display:grid; place-items:center}
+.dough-head h2{font-size:30px}
+.dough-head .desc{color:var(--ink2); font-size:15.5px; margin-top:4px}
+.dough-card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:6px 20px 18px; box-shadow:var(--shadow); margin-bottom:14px}
+.dlabel{display:block; font-size:12.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--ink2); margin:16px 0 8px}
+.dough-card .chips{padding:0; overflow-x:visible; flex-wrap:wrap}
+.dcount{display:flex; align-items:center; gap:14px}
+.dgf{display:flex; align-items:center; gap:10px; margin:16px 0 4px; font-size:15.5px; font-weight:600; cursor:pointer; -webkit-user-select:none; user-select:none}
+.dgf input{width:20px; height:20px; accent-color:var(--brand)}
+.dadv{margin-top:12px; border-top:1px solid var(--line); padding-top:12px}
+.dadv summary{font-size:14px; font-weight:700; color:var(--brand); cursor:pointer; -webkit-user-select:none; user-select:none}
+.dadv-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(105px, 1fr)); gap:12px; margin-top:4px}
+.dadv-grid .dlabel{margin:10px 0 6px}
+.dadv-grid input{width:100%; padding:10px 12px; font-size:16px; background:var(--bg2); color:var(--ink); border:1.5px solid var(--line); border-radius:11px}
+.dadv-grid input:focus{outline:none; border-color:var(--brand)}
+.dsum{font-family:var(--serif); font-size:22px; margin:14px 0 6px}
+.dsum b{color:var(--brand)}
+.dtable{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums}
+.dtable td{padding:10px 4px; border-bottom:1px solid var(--line); font-size:17px}
+.dtable tr:last-child td{border-bottom:0}
+.dg{font-weight:700; color:var(--brand); font-size:19px; white-space:nowrap; width:88px}
+.dpct{color:var(--ink2); text-align:right; font-size:13.5px; white-space:nowrap}
+.dnote{margin-top:10px; font-size:13.5px; color:var(--ink2)}
+.dough-actions{display:flex; gap:12px; flex-wrap:wrap}
+
 /* ---------- Import panel ---------- */
 .importbox{
   margin:6px 0 4px; padding:0 18px 16px; border-radius:16px;
@@ -801,6 +831,138 @@ async function importFromText(useAi){
 }
 
 /* =====================================================================
+   Dough calculator — Dough Guy-style inputs, transparent baker's math
+   ===================================================================== */
+const DOUGH_KEY = "kitchen.dough.v1";
+const DOUGH_DEFAULTS = {size: 16, count: 4, thick: "regular", gf: false, hyd: 62, salt: 2.5, yeast: 0.4, oil: 2, sugar: 1};
+const DOUGH_SIZES = [10, 12, 14, 16, 20];
+const THICK_FACTOR = {thin: 1.69, regular: 2.114, thick: 2.64}; // g per square inch — 16″ regular ≈ 425 g ball
+let dough = {...DOUGH_DEFAULTS};
+try { Object.assign(dough, JSON.parse(localStorage.getItem(DOUGH_KEY)) || {}); } catch {}
+function saveDough(){ try { localStorage.setItem(DOUGH_KEY, JSON.stringify(dough)); } catch {} }
+
+function calcDough(s){
+  const area = Math.PI * (s.size / 2) ** 2;
+  const ball = Math.round(area * THICK_FACTOR[s.thick]);
+  const total = ball * s.count;
+  const hyd = s.hyd + (s.gf ? 5 : 0); // GF blends drink more water
+  const flour = total / (1 + (hyd + s.salt + s.yeast + s.oil + s.sugar) / 100);
+  const g1 = v => Math.round(v), g01 = v => Math.round(v * 10) / 10;
+  const rows = [
+    {name: s.gf ? "gluten-free flour blend" : "bread or “00” flour", grams: g1(flour), pct: 100},
+    {name: "cold water", grams: g1(flour * hyd / 100), pct: hyd},
+    {name: "fine sea salt", grams: g01(flour * s.salt / 100), pct: s.salt},
+    {name: "instant dry yeast", grams: g01(flour * s.yeast / 100), pct: s.yeast}
+  ];
+  if (s.oil > 0) rows.push({name: "olive oil", grams: g01(flour * s.oil / 100), pct: s.oil});
+  if (s.sugar > 0) rows.push({name: "sugar", grams: g01(flour * s.sugar / 100), pct: s.sugar});
+  const kcalBall = Math.round((flour * 3.64 + flour * s.oil / 100 * 8.84 + flour * s.sugar / 100 * 3.87) / s.count);
+  const protBall = Math.round(flour * 0.103 / s.count);
+  return {ball, total, hyd, rows, kcalBall, protBall};
+}
+
+function doughOutHTML(c){
+  return `
+  <p class="dsum">${dough.count} ball${dough.count === 1 ? "" : "s"} · <b>${c.ball}g</b> each · ${c.total.toLocaleString()}g dough</p>
+  <table class="dtable">
+    ${c.rows.map(r => `<tr>
+      <td class="dg">${r.grams}g</td>
+      <td>${esc(r.name)}</td>
+      <td class="dpct">${r.pct}%</td>
+    </tr>`).join("")}
+  </table>
+  <p class="dnote">≈ ${c.kcalBall} kcal · ${c.protBall} g protein per ball &nbsp;·&nbsp; cold ferment 2–4 days for best flavour</p>`;
+}
+
+function renderDough(){
+  const advOpen = $("#dadv")?.open ?? (
+    dough.hyd !== DOUGH_DEFAULTS.hyd || dough.salt !== DOUGH_DEFAULTS.salt ||
+    dough.yeast !== DOUGH_DEFAULTS.yeast || dough.oil !== DOUGH_DEFAULTS.oil || dough.sugar !== DOUGH_DEFAULTS.sugar);
+  const chip = (k, v, label) =>
+    `<button class="chip ${String(dough[k]) === String(v) ? "on" : ""}" data-action="dough-set" data-k="${k}" data-v="${v}">${label}</button>`;
+  $("#app").innerHTML = `
+  <div class="dough">
+    <div class="cookbar">
+      <button class="btn" data-action="back-home">←&nbsp; Recipes</button>
+    </div>
+    <div class="dough-wrap">
+      <header class="dough-head">
+        <span class="emoji">🍕</span>
+        <div>
+          <h2>Dough calculator</h2>
+          <p class="desc">Pick the pizzas, get exact grams — baker's percentages done for you.</p>
+        </div>
+      </header>
+
+      <section class="dough-card">
+        <label class="dlabel">Pizza size</label>
+        <div class="chips">${DOUGH_SIZES.map(n => chip("size", n, n + "″")).join("")}</div>
+        <label class="dlabel">How many pizzas</label>
+        <div class="dcount">
+          <button class="stepbtn" data-action="dough-dec" aria-label="Fewer pizzas" ${dough.count <= 1 ? "disabled" : ""}>−</button>
+          <div class="serv"><b>${dough.count}</b><small>pizza${dough.count === 1 ? "" : "s"}</small></div>
+          <button class="stepbtn" data-action="dough-inc" aria-label="More pizzas" ${dough.count >= 12 ? "disabled" : ""}>＋</button>
+        </div>
+        <label class="dlabel">Thickness</label>
+        <div class="chips">${chip("thick", "thin", "Thin")}${chip("thick", "regular", "Regular")}${chip("thick", "thick", "Thick")}</div>
+        <label class="dgf"><input type="checkbox" id="d-gf" ${dough.gf ? "checked" : ""}> Gluten-free (GF blend + extra hydration)</label>
+        <details class="dadv" id="dadv" ${advOpen ? "open" : ""}>
+          <summary>Baker's percentages</summary>
+          <div class="dadv-grid">
+            <div><label class="dlabel" for="d-hyd">Hydration %</label><input type="number" id="d-hyd" step="1" inputmode="decimal" value="${dough.hyd}"></div>
+            <div><label class="dlabel" for="d-salt">Salt %</label><input type="number" id="d-salt" step="0.1" inputmode="decimal" value="${dough.salt}"></div>
+            <div><label class="dlabel" for="d-yeast">Yeast %</label><input type="number" id="d-yeast" step="0.1" inputmode="decimal" value="${dough.yeast}"></div>
+            <div><label class="dlabel" for="d-oil">Olive oil %</label><input type="number" id="d-oil" step="0.5" inputmode="decimal" value="${dough.oil}"></div>
+            <div><label class="dlabel" for="d-sugar">Sugar %</label><input type="number" id="d-sugar" step="0.5" inputmode="decimal" value="${dough.sugar}"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="dough-card" id="doughOut">${doughOutHTML(calcDough(dough))}</section>
+
+      <div class="dough-actions">
+        <button class="btn btn-primary" data-action="dough-save">Save as a recipe</button>
+        <button class="btn" data-action="dough-reset">↺ Defaults</button>
+      </div>
+      <p class="hint" style="margin-top:12px">Saved dough shows up in your recipe book with per-ball nutrition — the serving stepper rescales the grams, and it's loggable to Dinner Fund like anything else.</p>
+    </div>
+  </div>`;
+}
+
+function saveDoughRecipe(){
+  const c = calcDough(dough);
+  const thickLabel = dough.thick.charAt(0).toUpperCase() + dough.thick.slice(1);
+  const rec = {
+    id: uid(),
+    emoji: "🍕",
+    title: `Pizza Dough — ${dough.count} × ${dough.size}″ ${thickLabel}`,
+    summary: `${dough.count} dough ball${dough.count === 1 ? "" : "s"} for ${dough.size}-inch ${dough.thick} pizzas at ${c.hyd}% hydration — exact grams from the dough calculator, cold-fermented for flavour.`,
+    tags: ["Pizza", "Dough"],
+    baseServings: dough.count,
+    prepMins: 25,
+    cookMins: 0,
+    kcal: c.kcalBall,
+    protein: c.protBall,
+    ingredients: c.rows.map(r => r.grams + "g " + r.name),
+    steps: [
+      `Stir the yeast${dough.sugar > 0 ? " and sugar" : ""} into the cold water until dissolved.`,
+      `Add the flour${dough.oil > 0 ? " and olive oil" : ""} and mix until no dry flour remains. Rest for 20 minutes, then add the salt and knead for 8–10 minutes until smooth.`,
+      "Cover and rest at room temperature for 1 hour.",
+      `Divide into ${dough.count} ball${dough.count === 1 ? "" : "s"} of about ${c.ball}g each and place in lightly oiled, covered containers.`,
+      "Cold ferment in the fridge for 2–4 days — flavour peaks around day 3.",
+      "Take the balls out 1–2 hours before stretching so they come up to room temperature."
+    ],
+    notes: `From the dough calculator — ${c.hyd}% hydration, ${dough.salt}% salt, ${dough.yeast}% yeast${dough.gf ? ", gluten-free" : ""}.`,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  db.recipes.push(rec);
+  saveDB();
+  toast("Dough recipe saved 🍕");
+  go({v: "cook", id: rec.id}, false);
+}
+
+/* =====================================================================
    Starter recipes
    ===================================================================== */
 const SEEDS = [
@@ -1058,6 +1220,9 @@ function applyState(s){
   } else if (s.v === "edit"){
     view = {name: "edit", id: s.id || null};
     renderEdit(s.id ? findRecipe(s.id) : null);
+  } else if (s.v === "dough"){
+    view = {name: "dough"};
+    renderDough();
   } else {
     view = {name: "home", q: view.q || "", tag: view.tag || null};
     renderHome();
@@ -1091,7 +1256,8 @@ function gridHTML(){
   const rs = db.recipes.filter(r => matches(r, view.q, view.tag))
     .sort((a, b) => a.title.localeCompare(b.title));
   const cards = rs.map(cardHTML).join("");
-  const add = `<button class="card card-add" data-action="add-recipe"><span class="plus">＋</span>Add a recipe</button>`;
+  const add = `<button class="card card-add" data-action="add-recipe"><span class="plus">＋</span>Add a recipe</button>
+    <button class="card card-add card-dough" data-action="open-dough"><span class="plus">🍕</span>Dough calculator<span class="subtxt">Exact grams for pizza night</span></button>`;
   if (!db.recipes.length) return `<div class="empty">Your recipe book is empty.<br><br></div><div class="grid">${add}</div>`;
   if (!rs.length) return `<div class="empty">Nothing matches “${esc(view.q || view.tag)}”.</div><div class="grid">${add}</div>`;
   return `<div class="grid">${cards}${add}</div>`;
@@ -1440,6 +1606,13 @@ document.addEventListener("click", e => {
 
     case "log-fund": if (r) logToDinnerFund(r); break;
 
+    case "open-dough": go({v: "dough"}); break;
+    case "dough-set": dough[t.dataset.k] = t.dataset.k === "size" ? +t.dataset.v : t.dataset.v; saveDough(); renderDough(); break;
+    case "dough-inc": dough.count = Math.min(12, dough.count + 1); saveDough(); renderDough(); break;
+    case "dough-dec": dough.count = Math.max(1, dough.count - 1); saveDough(); renderDough(); break;
+    case "dough-reset": dough = {...DOUGH_DEFAULTS}; saveDough(); renderDough(); break;
+    case "dough-save": saveDoughRecipe(); break;
+
     case "import-url": importFromUrl(); break;
     case "import-text": importFromText(false); break;
     case "import-ai": {
@@ -1480,6 +1653,26 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => {
   if (e.target.id === "search"){ view.q = e.target.value.trim(); refreshGrid(); }
   if (e.target.id === "f-ing") refreshPreviewSoon();
+  const dm = e.target.id?.match(/^d-(hyd|salt|yeast|oil|sugar)$/);
+  if (dm){
+    const lim = {hyd: [40, 110], salt: [0, 5], yeast: [0, 3], oil: [0, 12], sugar: [0, 12]}[dm[1]];
+    const v = parseFloat(e.target.value);
+    if (isFinite(v)){
+      dough[dm[1]] = Math.max(lim[0], Math.min(lim[1], v));
+      saveDough();
+      const out = $("#doughOut");
+      if (out) out.innerHTML = doughOutHTML(calcDough(dough));
+    }
+  }
+});
+
+document.addEventListener("change", e => {
+  if (e.target.id === "d-gf"){
+    dough.gf = e.target.checked;
+    saveDough();
+    const out = $("#doughOut");
+    if (out) out.innerHTML = doughOutHTML(calcDough(dough));
+  }
 });
 
 // Enter in the import URL field fetches instead of submitting the whole form
@@ -1533,7 +1726,7 @@ if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
 
 /* test hooks (harmless in normal use) */
 window.__kitchen = {parseIngredient, scaledLineText, fracFmt, fmtQty,
-  parseRecipeText, extractRecipeFromJsonLd, parseISODuration, guessEmoji};
+  parseRecipeText, extractRecipeFromJsonLd, parseISODuration, guessEmoji, calcDough};
 </script>
 </body>
 </html>

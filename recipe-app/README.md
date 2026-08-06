@@ -88,6 +88,17 @@ Salt and pepper, to taste
 Steps go one per line — numbering is automatic. The "What is it?" box is the
 summary shown at the top while you cook.
 
+## Dough calculator 🍕
+
+The **Dough calculator** card on the home screen (Dough Guy-style) turns
+*"4 × 16-inch regular pizzas"* into exact grams via baker's percentages:
+pick size, count, and thickness (plus a gluten-free toggle), and tweak
+hydration / salt / yeast / oil / sugar percentages under *Baker's
+percentages*. A 16″ regular ball comes out at ≈ 425 g. **Save as a recipe**
+drops the result into the recipe book with Serves = number of dough balls
+(so the stepper rescales the grams), a cold-ferment method, and per-ball
+kcal/protein — which makes pizza night loggable to Dinner Fund too.
+
 ## Backups & moving recipes between devices
 
 Recipes live in the browser's storage on each device. Tap **⇅** on the home
