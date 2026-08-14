@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.18';
+  const BUILD = '2026-07-26.19';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -345,13 +345,19 @@
 
   const isUni = (exId) => !!exOf(exId).uni;
 
+  /* The flag decides whether NEW sets get two sides. Whether an EXISTING set
+     is rendered and counted per side is decided by the set itself — otherwise
+     reclassifying a movement would hide numbers already logged under it. */
+  const hasRight = (s) => s && s.r2 !== null && s.r2 !== undefined;
+  const entryIsUni = (entry) => isUni(entry.exerciseId) || entry.sets.some(hasRight);
+
   /* One number to represent a set for progression and trend. On a one-sided
      movement that's the WEAKER side: you've only earned the load when both
      arms clear the target, and a trend driven by your good arm would flatter
      you. Volume still counts both sides — that work was done. */
   function setEffort(entry, s) {
     const left = { w: s.w, r: s.r };
-    if (!isUni(entry.exerciseId) || s.r2 === null || s.r2 === undefined) return left;
+    if (!hasRight(s)) return left;
     const right = { w: s.w2, r: s.r2 };
     if (!s.r) return right;
     if (!s.r2) return left;
@@ -422,8 +428,7 @@
   /* "17.5×8" bilateral, "17.5×8/7" per side at one weight, "17.5×8 / 20×7"
      when the sides used different loads. */
   function fmtSetShort(entry, s) {
-    const two = isUni(entry.exerciseId) && s.r2 !== null && s.r2 !== undefined;
-    if (!two) return `${fmtW(s.w)}×${s.r}`;
+    if (!hasRight(s)) return `${fmtW(s.w)}×${s.r}`;
     if (s.w === s.w2) return `${fmtW(s.w)}×${s.r}/${s.r2}`;
     return `${fmtW(s.w)}×${s.r} / ${fmtW(s.w2)}×${s.r2}`;
   }
@@ -1206,7 +1211,7 @@
 
     const sugW = sug ? sug.weight : null;
 
-    const uni = !!ex.uni;
+    const uni = entryIsUni(entry);
     const wPh = sugW !== null ? fmtW(sugW) : (ex.bw ? '0' : '');
     const tick = (idx) => `<button class="check" data-action="toggle-set" data-slot="${entry.slotId}" data-set="${idx}"
         aria-label="Mark set ${idx + 1} complete">
