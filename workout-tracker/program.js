@@ -206,6 +206,10 @@ const DAY_POOL = {
     { group: 'Glutes',            sets: 3, reps: [8, 12],  ids: ['hip_thrust'] },
     { group: 'Hips',              sets: 3, reps: [12, 15], ids: ['adductor', 'abductor', 'cable_abduction'] },
     { group: 'Calves',            sets: 4, reps: [12, 15], ids: ['standing_calf', 'seated_calf', 'press_calf'] },
+    /* Traps are a pull muscle, but dumbbell shrugs fit a leg day too — heavy
+       holds, no extra equipment. Same id as on Pull, so one progression line
+       covers it wherever you do it. */
+    { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['db_shrug'] },
     { group: 'Core',              sets: 3, reps: [12, 15], ids: ['hanging_knee', 'hanging_leg', 'captains_chair', 'cable_crunch', 'ab_wheel', 'decline_situp'] },
   ],
 };
