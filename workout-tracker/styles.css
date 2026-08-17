@@ -535,3 +535,23 @@ table.data tr:last-child td { border-bottom: none; }
 .set-row.uni input { min-height: 38px; }
 .set-head.uni { grid-template-columns: 26px 15px 1fr 1fr var(--tap); }
 .set-head.uni span:nth-child(3), .set-head.uni span:nth-child(4) { text-align: center; }
+
+/* ---------- keep the rest timer above the on-screen keyboard ---------- */
+
+/* --kb is the height the keyboard is covering, set from the visual viewport.
+   With it open the tab bar is behind the keyboard anyway, so the timer drops
+   its tab-bar offset and sits directly on top of the keyboard instead. */
+:root.kb-open .rest-bar {
+  bottom: var(--kb, 0px);
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+:root.kb-open .rest-bar .time { font-size: 19px; }
+
+/* The keyboard shrinks what you can see but not what the document can scroll,
+   so without this the last set on the page has nowhere to go and stays stuck
+   underneath the bar. Give it exactly the keyboard's worth of runway. */
+:root.kb-open .view { padding-bottom: calc(150px + var(--kb, 0px) + env(safe-area-inset-bottom)); }
+
+/* So iOS scrolling the focused field into view leaves room for the bar. */
+:root.kb-open .set-row input { scroll-margin-bottom: 64px; }

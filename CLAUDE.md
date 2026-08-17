@@ -14,7 +14,7 @@ see it or get it back. A careless edit destroys months of logged work.
 1. **Never change `KEY`** (`'ppl-tracker-v1'` in `app.js`). It is the address of
    all saved data. Changing it makes every logged workout unreachable. It is
    permanent even though it says `v1` — the `v1` is historical, the schema
-   version is tracked separately in `SCHEMA` (currently 3).
+   version is tracked separately in `SCHEMA` (currently 4).
 
 2. **Never rename or delete a key in `EXERCISES`** (`program.js`). Every logged
    set stores its movement by that key. Renaming detaches the history: no

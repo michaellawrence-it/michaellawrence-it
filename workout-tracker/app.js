@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-07-26.19';
+  const BUILD = '2026-07-26.20';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -884,6 +884,44 @@
     } catch (err) {
       /* audio is a nicety, never a failure */
     }
+  }
+
+  /* iOS pins position:fixed to the LAYOUT viewport, so the on-screen keyboard
+     slides straight over the rest timer. The visual viewport is the part you
+     can actually see — track it and lift the bar to sit on top of the keyboard
+     while typing. */
+  function trackKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let wasOpen = false;
+    const apply = () => {
+      const inset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      document.documentElement.style.setProperty('--kb', Math.round(inset) + 'px');
+      // 80px of slack so a collapsing URL bar isn't mistaken for a keyboard.
+      const open = inset > 80;
+      document.documentElement.classList.toggle('kb-open', open);
+      // Only on the open transition: mid-scroll corrections would fight you.
+      if (open && !wasOpen) clearBarFromFocus();
+      wasOpen = open;
+    };
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    apply();
+
+    /* The bar now sits exactly where iOS parks the focused field. Scroll the
+       page far enough that the field you're typing in clears it. Focus can also
+       move between fields with the keyboard already up, hence both hooks. */
+    document.addEventListener('focusin', () => setTimeout(clearBarFromFocus, 350));
+  }
+
+  function clearBarFromFocus() {
+    const el = document.activeElement;
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'SELECT')) return;
+    const bar = $('#rest-bar');
+    if (!bar || bar.hidden) return;
+    // Both rects are layout-viewport relative, so they compare directly.
+    const overlap = el.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+    if (overlap > -8) window.scrollBy(0, Math.ceil(overlap) + 12);
   }
 
   /* Keep the screen awake mid-session where the browser allows it. */
@@ -2259,6 +2297,7 @@
   if (recoveryNotice && recoveryNotice.kind === 'migrated') writeNow();
 
   applyTheme();
+  trackKeyboard();
   renderBanner();
   render();
 
