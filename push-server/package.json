@@ -1,0 +1,13 @@
+{
+  "name": "ppl-push-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that sends scheduled training reminders to the PPL Tracker PWA.",
+  "scripts": {
+    "keys": "node keys.mjs",
+    "test": "node webpush.test.mjs",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  }
+}
