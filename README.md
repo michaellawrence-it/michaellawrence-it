@@ -22,10 +22,9 @@ TestOut Security Pro (2024) · Rutgers Cybersecurity Bootcamp (2023) · athenahe
 | [powerapps-employee-evaluations](https://github.com/michaellawrence-it/powerapps-employee-evaluations) | Paper evaluation process replaced org-wide with a model-driven app + automated anniversary flows |
 | [hyperv-ad-lab](https://github.com/michaellawrence-it/hyperv-ad-lab) | Server 2025 domain on a self-built host - dual-vSwitch isolation, PXE imaging, RemoteApp over an internally-issued cert |
 | [homelab-media-stack](https://github.com/michaellawrence-it/homelab-media-stack) | Self-healing Docker media platform on a 13-drive layout - recovered end-to-end from a dynamic-disk failure |
-| [ad-computer-group-automation](https://github.com/michaellawrence-it/ad-computer-group-automation) | Event-driven: new AD computers auto-join LAPS/Intune/policy groups on Event 4741 - running in production |
 | [entra-dynamic-groups](https://github.com/michaellawrence-it/entra-dynamic-groups) | Department/role/location attributes drive all security-group membership |
 | [powerplatform-alm](https://github.com/michaellawrence-it/powerplatform-alm) | Dev → Sandbox → Production promotion for Power Platform solutions, with a validated rollback path |
-| [mdt-imaging-config](https://github.com/michaellawrence-it/mdt-imaging-config) | Manual laptop setup eliminated via MDT task sequences |
+| [mdt-imaging-config](https://github.com/michaellawrence-it/mdt-imaging-config) | Manual laptop setup eliminated via MDT task sequences; the domain join then fires Event 4741 and the machine auto-lands in its LAPS/Intune/policy groups |
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?logo=powershell&logoColor=white)
 ![Microsoft 365](https://img.shields.io/badge/Microsoft%20365-D83B01?logo=microsoft&logoColor=white)
