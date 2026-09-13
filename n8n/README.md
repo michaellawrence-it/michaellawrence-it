@@ -85,8 +85,9 @@ for both instead of creating copies.
 ## What it is actually looking for
 
 The brief is **social things to do** — something to bring friends along to, or
-to turn up to alone and meet people. Not conferences, not business networking,
-not kids' or family events, not fundraising galas. A few Chabad events are
+to turn up to alone and meet people. Singles and speed-dating events count. Not
+conferences, not business networking, not kids' or family events, not
+fundraising galas. A few Chabad events are
 welcome but hard-capped at three so they never take over.
 
 That intent is enforced in three places in **Build Events Shortlist**:
@@ -97,8 +98,8 @@ That intent is enforced in three places in **Build Events Shortlist**:
 - `EB_SKIP_SERVICE` — religious-service terms, dropped from the general lanes
   but allowed through the Chabad lane.
 - `socialScore()` — live music, comedy, trivia, food and drink, markets,
-  festivals, classes and meetups score up; conferences, expos, seminars and
-  business networking score down. Anything scoring zero or less is dropped, and
+  festivals, classes, meetups and singles/speed-dating events score up;
+  conferences, expos, seminars and business networking score down. Anything scoring zero or less is dropped, and
   the best-scoring fill each lane. Taking events in date order instead is what
   produced the junk-filled first run.
 
