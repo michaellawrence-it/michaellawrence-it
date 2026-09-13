@@ -34,6 +34,33 @@ Hard-dated event calendars (The Events Calendar REST API)
 
 All free and public. No API keys.
 
+
+### Google Calendar sync
+
+A second branch hangs off the email and pushes anything with a **real date**
+into a dedicated calendar, **Around Town — Hoboken / JC / NYC**, which the
+workflow creates on its first successful run and reuses afterwards.
+
+Two classes of event, trusted differently:
+
+- **Event-calendar feed entries** keep their exact start time, venue and cost,
+  straight from the feed.
+- **Blog picks** are synced as all-day events *only when the article itself
+  stated a date*. The model is instructed to return an empty string rather than
+  infer one, and anything empty is dropped. Each entry links back to its article
+  and says in the description that the date was read out of the post.
+
+Google event ids are derived from `hash(link) + hash(date)`, which is valid
+base32hex, so a re-run inserts the same id and Google rejects it as a duplicate
+rather than creating a second copy. Nothing is ever updated or deleted — if an
+organiser moves a date, the new date shows up as a new entry.
+
+**Setup:** the three Google nodes (`List Google Calendars`,
+`Create Google Calendar`, `Add To Google Calendar`) need a Google Calendar
+credential selected in the n8n editor. Until then the branch emits nothing and
+the email still sends — all three are `continueRegularOutput`, so an unconnected
+or expired Google credential can never take the digest down with it.
+
 ### Notes
 
 - Every source node is `onError: continueRegularOutput`, so one dead feed never

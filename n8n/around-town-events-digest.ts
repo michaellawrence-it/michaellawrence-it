@@ -1,4 +1,4 @@
-import { workflow, node, trigger, sticky, merge, languageModel, outputParser, newCredential, expr } from '@n8n/workflow-sdk';
+import { workflow, node, trigger, sticky, merge, ifElse, languageModel, outputParser, newCredential, expr } from '@n8n/workflow-sdk';
 
 
 const weeklyTrigger = trigger({
@@ -242,7 +242,7 @@ const picksParser = outputParser({
     position: [1200, 880],
     parameters: {
       schemaType: 'fromJson',
-      jsonSchemaExample: '{"note": "A short friendly line introducing the week.", "picks": [{"id": 0, "name": "Hoboken Arts and Music Festival", "area": "Hoboken", "when": "Sun Sep 21", "where": "Washington Street", "why": "A full day of the main drag closed to cars, with four stages and a hundred-odd food and craft vendors. It is the one weekend a year the whole town is outside at once.", "tag": "festival"}]}',
+      jsonSchemaExample: '{"note": "A short friendly line introducing the week.", "picks": [{"id": 0, "name": "Hoboken Arts and Music Festival", "area": "Hoboken", "when": "Sun Sep 21", "startDate": "2026-09-21", "endDate": "2026-09-21", "where": "Washington Street", "why": "A full day of the main drag closed to cars, with four stages and a hundred-odd food and craft vendors. It is the one weekend a year the whole town is outside at once.", "tag": "festival"}]}',
       autoFix: false
     }
   }
@@ -255,7 +255,7 @@ const curate = node({
     name: 'Curate The Week',
     position: [1040, 640],
     executeOnce: true,
-    parameters: { promptType: 'define', text: expr('{{ $json.promptText }}'), hasOutputParser: true },
+    parameters: { promptType: 'define', text: expr("={{ $json.promptText }}\n\nTWO MORE FIELDS, FOR THE CALENDAR\n\nToday is {{ $now.setZone('America/New_York').toFormat('cccc, LLLL d, yyyy') }}.\n\nFor every pick also return:\n- \"startDate\": the date it starts, as YYYY-MM-DD, but ONLY if the post text actually states a date. Resolve shorthand like \"9/30\" or \"September 26th\" against today's date, picking the next occurrence. If the post does not state a date, return an empty string.\n- \"endDate\": the last date it runs, as YYYY-MM-DD, for multi-day things like \"9/10 - 9/13\". For a single-day thing repeat startDate. If no date is stated, return an empty string.\n\nNever guess or infer a date. An empty string is always the right answer when the text does not say. These dates go straight onto a real calendar."), hasOutputParser: true },
     subnodes: { model: curatorModel, outputParser: picksParser }
   },
   output: [{ output: { note: 'A quiet week on this side of the river, but a good one.', picks: [{ id: 0, name: 'Sample pick', area: 'Hoboken', when: 'Sat Sep 12', where: 'Pier A Park', why: 'Sample reason.', tag: 'outdoors' }] } }]
@@ -309,6 +309,124 @@ const sourcesNote = sticky(
 );
 
 
+const listCalendars = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.3,
+  config: {
+    name: 'List Google Calendars',
+    position: [1560, 900],
+    executeOnce: true,
+    onError: 'continueRegularOutput',
+    parameters: {
+      method: 'GET',
+      url: 'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googleCalendarOAuth2Api',
+      sendQuery: true,
+      specifyQuery: 'keypair',
+      queryParameters: {
+        parameters: [
+          { name: 'maxResults', value: '250' },
+          { name: 'minAccessRole', value: 'owner' }
+        ]
+      },
+      options: { timeout: 20000 }
+    },
+    credentials: { googleCalendarOAuth2Api: newCredential('Google Calendar account') }
+  },
+  output: [{ items: [{ id: 'abc123@group.calendar.google.com', summary: 'Around Town — Hoboken / JC / NYC' }] }]
+});
+
+const calendarExists = ifElse({
+  version: 2.2,
+  config: {
+    name: 'Around Town Calendar Exists?',
+    position: [1800, 900],
+    parameters: {
+      conditions: {
+        options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
+        conditions: [{
+          leftValue: expr("{{ $json.items ? $json.items.filter(c => c.summary === 'Around Town \u2014 Hoboken / JC / NYC').length > 0 : false }}"),
+          operator: { type: 'boolean', operation: 'true', singleValue: true }
+        }],
+        combinator: 'and'
+      }
+    }
+  }
+});
+
+const createCalendar = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.3,
+  config: {
+    name: 'Create Google Calendar',
+    position: [2040, 1020],
+    executeOnce: true,
+    onError: 'continueRegularOutput',
+    parameters: {
+      method: 'POST',
+      url: 'https://www.googleapis.com/calendar/v3/calendars',
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googleCalendarOAuth2Api',
+      sendBody: true,
+      contentType: 'json',
+      specifyBody: 'json',
+      jsonBody: "{\n  \"summary\": \"Around Town \u2014 Hoboken / JC / NYC\",\n  \"description\": \"Events picked up by the weekly Around Town digest in n8n. Dates come from local event calendars and from the articles themselves \u2014 double-check anything before you build a day around it.\",\n  \"timeZone\": \"America/New_York\"\n}",
+      options: { timeout: 20000 }
+    },
+    credentials: { googleCalendarOAuth2Api: newCredential('Google Calendar account') }
+  },
+  output: [{ id: 'abc123@group.calendar.google.com', summary: 'Around Town — Hoboken / JC / NYC' }]
+});
+
+const buildCalendarEvents = node({
+  type: 'n8n-nodes-base.code',
+  version: 2,
+  config: {
+    name: 'Build Calendar Events',
+    position: [2280, 900],
+    executeOnce: true,
+    parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: "// Builds one item per event to push into Google Calendar.\n// Two sources, both trusted differently:\n//   1. the event-calendar feeds  -> real start/end timestamps, used as-is\n//   2. the model's picks         -> a date only if the article text stated one\n// Anything without a usable date is dropped rather than guessed at.\n\nconst CAL_NAME = 'Around Town \u2014 Hoboken / JC / NYC';\nconst TZ = 'America/New_York';\nconst HORIZON_DAYS = 200;\n\nconst prep = $('Build Events Shortlist').first().json;\nconst pool = prep.pool || [];\nconst feedEvents = prep.calendar || [];\n\n// --- which calendar are we writing to? ------------------------------------\nlet calendarId = '';\ntry {\n  const made = $('Create Google Calendar').first().json;\n  if (made && made.id) calendarId = made.id;\n} catch (e) { calendarId = ''; }\n\nif (!calendarId) {\n  try {\n    const listed = $('List Google Calendars').first().json;\n    const items = (listed && Array.isArray(listed.items)) ? listed.items : [];\n    for (const c of items) {\n      if (c && c.summary === CAL_NAME) { calendarId = c.id; break; }\n    }\n  } catch (e) { calendarId = ''; }\n}\n\nif (!calendarId) return [];\n\n// --- the model's picks ------------------------------------------------------\nlet picked = [];\ntry {\n  const s = $('Curate The Week').first().json;\n  const out = (s && s.output) ? s.output : s;\n  if (out && Array.isArray(out.picks)) picked = out.picks;\n} catch (e) { picked = []; }\n\nconst byId = {};\npool.forEach(function (p) { byId[p.id] = p; });\n\n// Deterministic ids keep re-runs idempotent: the same event always computes the\n// same Google event id, so a repeat insert is a 409 rather than a duplicate.\n// Google requires base32hex, which is exactly what toString(32) emits.\nfunction hash32(s) {\n  let h = 2166136261;\n  const str = String(s || '');\n  for (let i = 0; i < str.length; i++) {\n    h = h ^ str.charCodeAt(i);\n    h = (h * 16777619) >>> 0;\n  }\n  return h.toString(32);\n}\n\nconst DATE_RE = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst now = Date.now();\nconst floor = now - 2 * 24 * 60 * 60 * 1000;\nconst ceiling = now + HORIZON_DAYS * 24 * 60 * 60 * 1000;\n\nfunction dayValid(d) {\n  if (!DATE_RE.test(d)) return false;\n  const t = new Date(d + 'T12:00:00Z').getTime();\n  return !isNaN(t) && t >= floor && t <= ceiling;\n}\n\nfunction addDay(d) {\n  const t = new Date(d + 'T12:00:00Z');\n  t.setUTCDate(t.getUTCDate() + 1);\n  return t.toISOString().slice(0, 10);\n}\n\nfunction localIso(ts) {\n  // Tribe feeds hand back wall-clock local time; keep it as wall clock and let\n  // Google apply the timeZone field rather than shifting it twice.\n  const d = new Date(ts);\n  const p = function (n) { return String(n).padStart(2, '0'); };\n  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) +\n    'T' + p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':00';\n}\n\nconst out = [];\nconst seenIds = {};\n\nfunction push(id, event) {\n  if (seenIds[id]) return;\n  seenIds[id] = true;\n  event.id = id;\n  out.push({ json: { calendarId: calendarId, eventId: id, title: event.summary, event: event } });\n}\n\n// 1. Real calendar-feed events, times taken verbatim.\nfor (const ev of feedEvents) {\n  if (!ev || !ev.ts) continue;\n  if (ev.ts < floor || ev.ts > ceiling) continue;\n  const startIso = localIso(ev.ts);\n  const endIso = localIso(ev.ts + 2 * 60 * 60 * 1000);\n  const bits = [];\n  if (ev.blurb) bits.push(ev.blurb);\n  if (ev.cost) bits.push('Cost: ' + ev.cost);\n  bits.push(ev.link);\n  bits.push('via ' + ev.source);\n\n  push('at' + hash32(ev.link) + hash32(startIso), {\n    summary: ev.title,\n    location: ev.venue || ev.area || '',\n    description: bits.join('\\n\\n'),\n    start: { dateTime: startIso, timeZone: TZ },\n    end: { dateTime: endIso, timeZone: TZ },\n    source: { title: ev.source, url: ev.link },\n    transparency: 'transparent'\n  });\n}\n\n// 2. Model picks, but only where the article itself stated a date.\nfor (const p of picked) {\n  if (!p) continue;\n  const src = byId[Number(p.id)];\n  if (!src) continue;\n\n  const start = String(p.startDate || '').trim();\n  if (!dayValid(start)) continue;\n\n  let end = String(p.endDate || '').trim();\n  if (!dayValid(end) || end < start) end = start;\n\n  const bits = [];\n  if (p.why) bits.push(String(p.why).trim());\n  if (p.where) bits.push('Where: ' + String(p.where).trim());\n  if (p.when) bits.push('Listed as: ' + String(p.when).trim());\n  bits.push(src.link);\n  bits.push('via ' + src.source + ' \u2014 date read from the article, double-check before you go');\n\n  push('at' + hash32(src.link) + hash32(start), {\n    summary: (p.name && String(p.name).trim()) || src.title,\n    location: p.where ? String(p.where).trim() : (p.area || ''),\n    description: bits.join('\\n\\n'),\n    start: { date: start },\n    end: { date: addDay(end) },\n    source: { title: src.source, url: src.link },\n    transparency: 'transparent'\n  });\n}\n\nreturn out;\n" }
+  },
+  output: [{ calendarId: 'abc123@group.calendar.google.com', eventId: 'at1a2b3c4d', title: 'Massive Thrift Market at Grove Street PATH Plaza', event: {} }]
+});
+
+const addToCalendar = node({
+  type: 'n8n-nodes-base.httpRequest',
+  version: 4.3,
+  config: {
+    name: 'Add To Google Calendar',
+    position: [2520, 900],
+    onError: 'continueRegularOutput',
+    retryOnFail: true,
+    maxTries: 2,
+    waitBetweenTries: 2000,
+    parameters: {
+      method: 'POST',
+      url: expr('https://www.googleapis.com/calendar/v3/calendars/{{ encodeURIComponent($json.calendarId) }}/events'),
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googleCalendarOAuth2Api',
+      sendBody: true,
+      contentType: 'json',
+      specifyBody: 'json',
+      jsonBody: expr('{{ JSON.stringify($json.event) }}'),
+      options: {
+        timeout: 20000,
+        response: { response: { neverError: true } },
+        batching: { batch: { batchSize: 5, batchInterval: 700 } }
+      }
+    },
+    credentials: { googleCalendarOAuth2Api: newCredential('Google Calendar account') }
+  },
+  output: [{ id: 'at1a2b3c4d', status: 'confirmed', htmlLink: 'https://www.google.com/calendar/event?eid=abc' }]
+});
+
+const calendarNote = sticky(
+  "## Google Calendar sync \u2014 one setup step\n\nThe three Google nodes need a **Google Calendar** credential selected. Open each one, pick *Credential to connect with \u2192 Create new*, and sign in.\n\nOn the first run after that, **Create Google Calendar** makes a calendar called **Around Town \u2014 Hoboken / JC / NYC**. Every run after that reuses it.\n\n**Only things with a real date get synced.** Calendar-feed events keep their exact start time. Blog picks sync as all-day events *only* when the article itself stated a date \u2014 the model is told to return an empty date rather than guess, and empties are dropped. Each entry links back to its article.\n\nEvent ids are derived from link + date, so re-running never creates duplicates.\n\nUntil the credential is connected this branch quietly does nothing and the email still sends.",
+  [buildCalendarEvents],
+  { color: 3 }
+);
+
 export default workflow('hoboken-jc-nyc-events-digest', 'Around Town — Hoboken, JC & NYC Events (Weekly)')
   .add(weeklyTrigger)
   .to(feedHobokenGirl.to(mergeSources.input(0)))
@@ -337,5 +455,11 @@ export default workflow('hoboken-jc-nyc-events-digest', 'Around Town — Hoboken
   .to(curate)
   .to(composeEmail)
   .to(sendEmail)
+  .add(composeEmail)
+  .to(listCalendars)
+  .to(calendarExists
+    .onTrue(buildCalendarEvents.to(addToCalendar))
+    .onFalse(createCalendar.to(buildCalendarEvents)))
   .add(tuningNote)
-  .add(sourcesNote);
+  .add(sourcesNote)
+  .add(calendarNote);
