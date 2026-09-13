@@ -90,13 +90,21 @@ conferences, not business networking, not kids' or family events, not
 fundraising galas. A few Chabad events are
 welcome but hard-capped at three so they never take over.
 
-That intent is enforced in three places in **Build Events Shortlist**:
+`MY_AGE` (24) sits in the same tuning block. Listings that advertise an age
+bracket — a range, a decade pair like "20s & 30s", or a minimum like "21+" —
+are dropped when that age falls outside it. Events with **no stated age are
+kept**: most events don't name one, and dropping those would gut the list. The
+check only runs on listings that look age-targeted in the first place, so an
+80s night or a 5-10pm slot is never misread as an age range.
+
+That intent is enforced in four places in **Build Events Shortlist**:
 
 - `EB_SKIP_HARD` — never wanted, in any lane. Grew by real example: the first
   Eventbrite run put four male-revue listings and two recurring networking ads
   straight onto the calendar.
 - `EB_SKIP_SERVICE` — religious-service terms, dropped from the general lanes
   but allowed through the Chabad lane.
+- `ageFits()` — see above, gated behind `AGE_TARGETED`.
 - `socialScore()` — live music, comedy, trivia, food and drink, markets,
   festivals, classes, meetups and singles/speed-dating events score up;
   conferences, expos, seminars and business networking score down. Anything scoring zero or less is dropped, and
