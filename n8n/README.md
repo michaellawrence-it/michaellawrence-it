@@ -32,7 +32,8 @@ Hard-dated event calendars (The Events Calendar REST API)
 - JC Families — `jcfamilies.com/wp-json/tribe/events/v1/events`
 - Visit Hoboken — `hobokenbusinessalliance.com/wp-json/tribe/events/v1/events`
 
-All free and public. No API keys.
+Eventbrite (`POST /v3/destination/search/`), four lanes: Hoboken, Jersey City,
+NYC and a small capped Chabad lane.
 
 
 ### Google Calendar sync
@@ -79,3 +80,48 @@ for both instead of creating copies.
   challenge to requests from the n8n Cloud IP, even with a browser User-Agent.
   The node degrades to zero events rather than failing, so the "On the calendar"
   section is currently fed by Visit Hoboken only.
+
+
+## What it is actually looking for
+
+The brief is **social things to do** — something to bring friends along to, or
+to turn up to alone and meet people. Not conferences, not business networking,
+not kids' or family events, not fundraising galas. A few Chabad events are
+welcome but hard-capped at three so they never take over.
+
+That intent is enforced in three places in **Build Events Shortlist**:
+
+- `EB_SKIP_HARD` — never wanted, in any lane. Grew by real example: the first
+  Eventbrite run put four male-revue listings and two recurring networking ads
+  straight onto the calendar.
+- `EB_SKIP_SERVICE` — religious-service terms, dropped from the general lanes
+  but allowed through the Chabad lane.
+- `socialScore()` — live music, comedy, trivia, food and drink, markets,
+  festivals, classes and meetups score up; conferences, expos, seminars and
+  business networking score down. Anything scoring zero or less is dropped, and
+  the best-scoring fill each lane. Taking events in date order instead is what
+  produced the junk-filled first run.
+
+## Eventbrite notes
+
+- The documented public event search (`/v3/events/search/`) is **gone** — it
+  returns 404. `POST /v3/destination/search/` is what eventbrite.com's own
+  search uses and it works, but it is undocumented and could change.
+- Its `places` filter is **ignored**. Hoboken, Jersey City and Hudson County
+  place ids all returned the same default NYC feed, which is why one run synced
+  28 NYC events and zero local ones. Each lane is therefore a text query plus a
+  hard venue-city check.
+- `/v3/destination/autocomplete/places/` is also 404, so place ids have to be
+  read out of the `locations` array on returned events.
+- Local events get 18 of the 26 calendar slots, Chabad up to 3, NYC the rest.
+  Without that quota NYC volume fills every slot on date order.
+
+## Known dead ends
+
+- **jcfamilies.com** and **chabadhoboken.com** both sit behind Cloudflare and
+  return a 403 challenge to datacenter IPs, with or without a browser
+  User-Agent. Neither is reachable from n8n Cloud. Chabad coverage therefore
+  comes from Eventbrite only, which carries a handful of NYC Chabad events and
+  none in Hoboken or Jersey City.
+- Google Calendar rate-limits bursts: inserting 5 events per 700ms produced two
+  `403 rateLimitExceeded`. Inserts now go one per 1.2s.
