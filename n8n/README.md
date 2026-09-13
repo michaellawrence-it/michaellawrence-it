@@ -55,11 +55,13 @@ base32hex, so a re-run inserts the same id and Google rejects it as a duplicate
 rather than creating a second copy. Nothing is ever updated or deleted — if an
 organiser moves a date, the new date shows up as a new entry.
 
-**Setup:** the three Google nodes (`List Google Calendars`,
-`Create Google Calendar`, `Add To Google Calendar`) need a Google Calendar
-credential selected in the n8n editor. Until then the branch emits nothing and
-the email still sends — all three are `continueRegularOutput`, so an unconnected
-or expired Google credential can never take the digest down with it.
+The Google Calendar credential is connected and the calendar exists. All three
+Google nodes are `continueRegularOutput`, so an expired Google credential can
+never take the digest down with it — the branch just emits nothing that week.
+
+Verified on a live run: the calendar was created under mikeylaw23@gmail.com, two
+dated picks were inserted, and an immediate second run returned `409 duplicate`
+for both instead of creating copies.
 
 ### Notes
 
