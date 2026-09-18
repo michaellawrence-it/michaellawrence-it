@@ -14,7 +14,15 @@ const EXERCISES = {
   bb_bench:        { name: 'Flat Barbell Bench Press', kind: 'barbell',    inc: 5 },
   incline_bb:      { name: 'Incline Barbell Press',    kind: 'barbell',    inc: 5 },
   incline_db:      { name: 'Incline Dumbbell Press',   kind: 'dumbbell',   inc: 5 },
+  // Three separate dip keys, on the same principle as the pull-up grips below:
+  // the grip changes which muscle does the work, so each keeps its own
+  // progression line. `dips` is the ungrouped key everything before the split
+  // was logged under — it stays in the catalog, and stays swappable, so that
+  // history keeps resolving. It is deliberately NOT aliased onto either grip:
+  // only the logs' owner knows which grip those sessions were.
   dips:            { name: 'Dips',                     kind: 'bodyweight', inc: 5, bw: true },
+  wide_dip:        { name: 'Wide-Grip Dip',            kind: 'bodyweight', inc: 5, bw: true },
+  neutral_dip:     { name: 'Neutral-Grip Dip',         kind: 'bodyweight', inc: 5, bw: true },
   ohp_bb:          { name: 'Overhead Press',           kind: 'barbell',    inc: 5 },
   cable_fly:       { name: 'Cable Chest Fly',          kind: 'cable',      inc: 5 },
   db_fly:          { name: 'Dumbbell Chest Fly',       kind: 'dumbbell',   inc: 5 },
@@ -126,10 +134,11 @@ const PROGRAM = {
     slots: [
       // Incline leads as the heavy press; flat bench drops to a secondary
       // volume slot behind it. Dips are now a fixed weekly movement rather
-      // than an alternate for incline.
+      // than an alternate for incline — the slot alternates the two grips
+      // week to week, and either can be picked by hand on the day.
       { id: 'p1', role: 'Incline Press',             sets: [4, 4], reps: [5, 8],   options: ['incline_bb'], anchor: true },
       { id: 'p2', role: 'Flat Bench Press',          sets: [3, 3], reps: [8, 10],  options: ['bb_bench'], anchor: true },
-      { id: 'p3', role: 'Dips',                      sets: [3, 3], reps: [8, 10],  options: ['dips'], anchor: true },
+      { id: 'p3', role: 'Dips',                      sets: [3, 3], reps: [8, 10],  options: ['wide_dip', 'neutral_dip'] },
       { id: 'p4', role: 'Overhead Press',            sets: [3, 3], reps: [6, 8],   options: ['ohp_bb'], anchor: true },
       { id: 'p5', role: 'Chest Fly',                 sets: [3, 3], reps: [10, 12], options: ['cable_fly', 'pec_deck', 'db_fly'] },
       { id: 'p6', role: 'Lateral Raises',            sets: [3, 3], reps: [12, 15], options: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
@@ -184,7 +193,7 @@ const DAY_KEYS = ['push', 'pull', 'legs'];
 --------------------------------------------------------------------------- */
 const DAY_POOL = {
   push: [
-    { group: 'Chest press',       sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'db_bench', 'decline_bb', 'machine_press', 'dips', 'pushup', 'cg_bench'] },
+    { group: 'Chest press',       sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'db_bench', 'decline_bb', 'machine_press', 'wide_dip', 'neutral_dip', 'dips', 'pushup', 'cg_bench'] },
     { group: 'Chest isolation',   sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly', 'incline_db_fly'] },
     { group: 'Shoulder press',    sets: 3, reps: [6, 10],  ids: ['ohp_bb', 'db_ohp', 'arnold_press', 'machine_ohp'] },
     { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise', 'db_front_raise'] },

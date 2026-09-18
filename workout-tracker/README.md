@@ -18,7 +18,7 @@ The three sessions are the ones you already run:
 |---|---|---|
 | Incline Press — 4×5–8 | Barbell Deadlift — 3–4×4–6 | Squats — 4×5–8 |
 | Flat Bench Press — 3×8–10 | Pull-ups — 3–4 sets | Leg Press — 3×8–10 |
-| Dips — 3×8–10 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
+| Dips (wide / neutral grip) — 3×8–10 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
 | Overhead Press — 3×6–8 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
 | Chest Fly — 3×10–12 | Face Pulls — 3×12–15 | Hip Abductor — 3×12–15 |
 | Lateral Raises — 3×12–15 | Barbell Curls — 3×8–10 | Calf Raises — 4×12–15 |
@@ -26,7 +26,11 @@ The three sessions are the ones you already run:
 
 Push notes: incline leads as the heavy press with flat bench behind it as a
 volume slot, dips are a fixed weekly movement rather than an alternate, and
-there is one tricep isolation rather than two — dips already supply heavy elbow
+there is one tricep isolation rather than two. The dip slot alternates wide
+grip (chest) and neutral grip (triceps) week to week; each grip is its own
+movement with its own progression line, and dips logged before the split stay
+under plain *Dips* in the picker and in Progress, since only you know which
+grip they were — dips already supply heavy elbow
 extension, so the overhead extension (long head, under stretch) is what's worth
 adding on top. Tricep pushdowns are retired from the program but stay in the
 exercise catalog, so any logged pushdown history is still readable under
@@ -52,7 +56,7 @@ position *inside* your prescribed ranges. Nothing is invented — 4×5–8 stays
 | 4 | **Deload** | Fewer sets at ~85% load. Optional — switch to a 3-week cycle in Settings. |
 
 **2. Accessory rotation.** Accessory slots cycle through their variations week
-to week — cable fly → pec deck → dumbbell, pull-up grips, and so on. The
+to week — cable fly → pec deck → dumbbell, pull-up grips, dip grips, and so on. The
 rotations are staggered so the whole session never turns over at once. The
 compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
