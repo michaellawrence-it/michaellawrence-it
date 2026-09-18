@@ -26,14 +26,14 @@ The three sessions are the ones you already run:
 
 Push notes: incline leads as the heavy press with flat bench behind it as a
 volume slot, dips are a fixed weekly movement rather than an alternate, and
-there is one tricep isolation rather than two. The dip slot alternates wide
-grip (chest) and neutral grip (triceps) week to week; each grip is its own
-movement with its own progression line, and dips logged before the split stay
-under plain *Dips* in the picker and in Progress, since only you know which
-grip they were — dips already supply heavy elbow
+there is one tricep isolation rather than two — dips already supply heavy elbow
 extension, so the overhead extension (long head, under stretch) is what's worth
-adding on top. Tricep pushdowns are retired from the program but stay in the
-exercise catalog, so any logged pushdown history is still readable under
+adding on top. The dip slot alternates wide grip (chest) and neutral grip
+(triceps) week to week; each grip is its own movement with its own progression
+line, and dips logged before that split stay under plain *Dips* in the picker
+and in Progress, since only you know which grip they were. Tricep pushdowns are
+retired from the program but stay in the exercise catalog, so any logged
+pushdown history is still readable under
 Progress → *No longer in the program*.
 
 One deliberate change to the original prescription: the pulldown/row slot is
@@ -62,10 +62,15 @@ compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
 
 **The rotation suggests; it never locks you in.** The movement name on each card
-is a picker offering *every* movement for that day — 17 on Push, 17 on Pull, 14
+is a picker offering *every* movement for that day — 31 on Push, 36 on Pull, 28
 on Legs — grouped by pattern, each labelled with when you last did it
 (`Dips · 3d ago`). If you want to chase a lift this week, pick it,
 whatever the rotation had planned.
+
+A few movements are offered on more than one day: dumbbell shrugs on Pull and
+Legs, and the alternating cable lateral raise and both dip grips on Push and
+Pull. They keep the same id wherever they appear, so each has one progression
+line no matter which day you did it on.
 
 Choosing a movement brings its own prescription with it: a programmed movement
 keeps its slot's waved numbers, anything else takes its pattern group's, so

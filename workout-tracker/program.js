@@ -209,6 +209,11 @@ const DAY_POOL = {
     { group: 'Rear delts / lats', sets: 3, reps: [12, 15], ids: ['face_pull', 'rear_delt_fly', 'rear_delt_fly_alt', 'straight_arm_pd'] },
     { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['bb_shrug', 'db_shrug'] },
     { group: 'Biceps',            sets: 3, reps: [8, 12],  ids: ['bb_curl', 'ez_curl', 'db_curl', 'db_curl_alt', 'db_hammer', 'db_hammer_alt', 'rope_hammer', 'incline_db_curl', 'preacher_curl', 'cable_curl', 'conc_curl', 'reverse_curl'] },
+    /* Side delts and dips are Push movements, offered on Pull day too. Same
+       ids as on Push, so one progression line covers each wherever you do it —
+       the same arrangement dumbbell shrugs have across Pull and Legs. */
+    { group: 'Side delts',        sets: 3, reps: [12, 15], ids: ['cable_lat_raise_alt'] },
+    { group: 'Dips',              sets: 3, reps: [8, 10],  ids: ['wide_dip', 'neutral_dip', 'dips'] },
   ],
   legs: [
     { group: 'Squat / press',     sets: 3, reps: [8, 10],  ids: ['back_squat', 'front_squat', 'goblet_squat', 'leg_press', 'hack_squat'] },
