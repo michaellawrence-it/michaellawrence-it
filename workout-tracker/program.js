@@ -29,6 +29,9 @@ const EXERCISES = {
   pec_deck:        { name: 'Pec Deck',                 kind: 'machine',    inc: 5 },
   db_lat_raise:    { name: 'Dumbbell Lateral Raise',   kind: 'dumbbell',   inc: 5 },
   cable_lat_raise: { name: 'Cable Lateral Raise',      kind: 'cable',      inc: 5 },
+  // One side at a time, so each set records a left and a right — the cable
+  // side that isn't working usually gets the cleaner rep.
+  cable_lat_raise_alt: { name: 'Alternating Cable Lateral Raise', kind: 'cable', inc: 5, uni: true },
   machine_lat_raise:{ name:'Machine Lateral Raise',    kind: 'machine',    inc: 5 },
   rope_pushdown:   { name: 'Rope Tricep Pushdown',     kind: 'cable',      inc: 5 },
   bar_pushdown:    { name: 'Straight-Bar Pushdown',    kind: 'cable',      inc: 5 },
@@ -196,7 +199,7 @@ const DAY_POOL = {
     { group: 'Chest press',       sets: 3, reps: [6, 10],  ids: ['incline_bb', 'incline_db', 'bb_bench', 'db_bench', 'decline_bb', 'machine_press', 'wide_dip', 'neutral_dip', 'dips', 'pushup', 'cg_bench'] },
     { group: 'Chest isolation',   sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly', 'incline_db_fly'] },
     { group: 'Shoulder press',    sets: 3, reps: [6, 10],  ids: ['ohp_bb', 'db_ohp', 'arnold_press', 'machine_ohp'] },
-    { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise', 'db_front_raise'] },
+    { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'cable_lat_raise_alt', 'machine_lat_raise', 'db_front_raise'] },
     { group: 'Triceps',           sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown', 'bench_dip'] },
   ],
   pull: [
