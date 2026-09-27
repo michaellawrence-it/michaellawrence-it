@@ -7,7 +7,7 @@ files are here so the logic is readable and diffable outside the n8n editor.
 ## around-town-events-digest.ts
 
 **"Around Town — Hoboken, JC & NYC Events (Weekly)"** — Thursday 5:00 PM
-Eastern, emails a digest of what's happening nearby to mikeylaw23@gmail.com.
+Eastern, emails a digest of what's happening nearby to dailyopsdigest@gmail.com.
 
 Shape: schedule trigger fans out to 11 sources → Merge (append) → one Code node
 that filters and area-tags everything → gpt-5-mini picks 8 highlights behind a

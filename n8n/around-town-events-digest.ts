@@ -284,7 +284,7 @@ const sendEmail = node({
     parameters: {
       resource: 'message',
       operation: 'send',
-      sendTo: 'mikeylaw23@gmail.com',
+      sendTo: 'dailyopsdigest@gmail.com',
       subject: expr('{{ $json.subject }}'),
       emailType: 'html',
       message: expr('{{ $json.html }}'),
