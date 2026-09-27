@@ -58,7 +58,7 @@ const EXERCISES = {
   deadlift:        { name: 'Conventional Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
   db_deadlift:     { name: 'Conventional Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
   pullup:          { name: 'Pull-ups (pronated)',      kind: 'bodyweight', inc: 5, bw: true },
-  chinup:          { name: 'Chin-ups (supinated)',     kind: 'bodyweight', inc: 5, bw: true },
+  chinup:          { name: 'Supinated Pull-ups',       kind: 'bodyweight', inc: 5, bw: true },
   neutral_pullup:  { name: 'Neutral-Grip Pull-ups',    kind: 'bodyweight', inc: 5, bw: true },
   bb_row:          { name: 'Barbell Bent-Over Row',    kind: 'barbell',    inc: 5 },
   db_row:          { name: 'Dumbbell Bent-Over Row',   kind: 'dumbbell',   inc: 5 },
