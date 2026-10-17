@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-10-17.4';
+  const BUILD = '2026-10-17.5';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -1270,7 +1270,6 @@
       </div>
       ${pickerOverlay()}`;
     if (!editing) requestWakeLock();
-    if (pickerFor) { const el = $('#picker-search'); if (el) el.focus(); }
   }
 
   function exerciseCard(entry, i) {
