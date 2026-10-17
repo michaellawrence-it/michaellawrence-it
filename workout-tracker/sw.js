@@ -1,6 +1,6 @@
 /* sw.js — offline shell. Bump CACHE when any file below changes. */
 
-const CACHE = 'ppl-tracker-2026-09-27.1';
+const CACHE = 'ppl-tracker-2026-10-17.1';
 const ASSETS = [
   './',
   './index.html',

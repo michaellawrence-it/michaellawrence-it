@@ -8,12 +8,19 @@
    bw:   true when the logged weight is *added* load on top of bodyweight
    uni:  true when it's worked one side at a time, so every set records a
          left and a right independently — the arms rarely match
+   pair: true when a dumbbell movement loads one weight in EACH hand at
+         once — the number logged is per dumbbell, so volume and e1rm use
+         double it. Distinct from `uni`: a `pair` movement's two dumbbells
+         always match, so one number still covers both; `uni` is for when
+         the sides are tracked separately because they can differ. A
+         movement can be both (e.g. a loaded split squat holds a pair while
+         the legs are logged one at a time).
 --------------------------------------------------------------------------- */
 const EXERCISES = {
   // --- Push ---------------------------------------------------------------
   bb_bench:        { name: 'Flat Barbell Bench Press', kind: 'barbell',    inc: 5 },
   incline_bb:      { name: 'Incline Barbell Press',    kind: 'barbell',    inc: 5 },
-  incline_db:      { name: 'Incline Dumbbell Press',   kind: 'dumbbell',   inc: 5 },
+  incline_db:      { name: 'Incline Dumbbell Press',   kind: 'dumbbell',   inc: 5, pair: true },
   // Three separate dip keys, on the same principle as the pull-up grips below:
   // the grip changes which muscle does the work, so each keeps its own
   // progression line. `dips` is the ungrouped key everything before the split
@@ -25,9 +32,9 @@ const EXERCISES = {
   neutral_dip:     { name: 'Neutral-Grip Dip',         kind: 'bodyweight', inc: 5, bw: true },
   ohp_bb:          { name: 'Overhead Press',           kind: 'barbell',    inc: 5 },
   cable_fly:       { name: 'Cable Chest Fly',          kind: 'cable',      inc: 5 },
-  db_fly:          { name: 'Dumbbell Chest Fly',       kind: 'dumbbell',   inc: 5 },
+  db_fly:          { name: 'Dumbbell Chest Fly',       kind: 'dumbbell',   inc: 5, pair: true },
   pec_deck:        { name: 'Pec Deck',                 kind: 'machine',    inc: 5 },
-  db_lat_raise:    { name: 'Dumbbell Lateral Raise',   kind: 'dumbbell',   inc: 5 },
+  db_lat_raise:    { name: 'Dumbbell Lateral Raise',   kind: 'dumbbell',   inc: 5, pair: true },
   cable_lat_raise: { name: 'Cable Lateral Raise',      kind: 'cable',      inc: 5 },
   // One side at a time, so each set records a left and a right — the cable
   // side that isn't working usually gets the cleaner rep.
@@ -39,16 +46,16 @@ const EXERCISES = {
   db_oh_ext:       { name: 'DB Overhead Tricep Ext.',  kind: 'dumbbell',   inc: 5 },
   cable_oh_ext:    { name: 'Cable Overhead Tricep Ext.', kind: 'cable',    inc: 5 },
   ez_skullcrusher: { name: 'EZ-Bar Skullcrusher',      kind: 'barbell',    inc: 5 },
-  db_bench:        { name: 'Flat Dumbbell Bench Press', kind: 'dumbbell',  inc: 5 },
+  db_bench:        { name: 'Flat Dumbbell Bench Press', kind: 'dumbbell',  inc: 5, pair: true },
   decline_bb:      { name: 'Decline Barbell Press',    kind: 'barbell',    inc: 5 },
   machine_press:   { name: 'Machine Chest Press',      kind: 'machine',    inc: 5 },
   pushup:          { name: 'Push-ups',                 kind: 'bodyweight', inc: 5, bw: true },
   cg_bench:        { name: 'Close-Grip Bench Press',   kind: 'barbell',    inc: 5 },
-  incline_db_fly:  { name: 'Incline Dumbbell Fly',     kind: 'dumbbell',   inc: 5 },
-  db_ohp:          { name: 'Seated Dumbbell Press',    kind: 'dumbbell',   inc: 5 },
-  arnold_press:    { name: 'Arnold Press',             kind: 'dumbbell',   inc: 5 },
+  incline_db_fly:  { name: 'Incline Dumbbell Fly',     kind: 'dumbbell',   inc: 5, pair: true },
+  db_ohp:          { name: 'Seated Dumbbell Press',    kind: 'dumbbell',   inc: 5, pair: true },
+  arnold_press:    { name: 'Arnold Press',             kind: 'dumbbell',   inc: 5, pair: true },
   machine_ohp:     { name: 'Machine Shoulder Press',   kind: 'machine',    inc: 5 },
-  db_front_raise:  { name: 'Dumbbell Front Raise',     kind: 'dumbbell',   inc: 5 },
+  db_front_raise:  { name: 'Dumbbell Front Raise',     kind: 'dumbbell',   inc: 5, pair: true },
   bench_dip:       { name: 'Bench Dip',                kind: 'bodyweight', inc: 5, bw: true },
 
   // --- Pull ---------------------------------------------------------------
@@ -56,12 +63,12 @@ const EXERCISES = {
   // sumo and trap-bar are absent. Any variant goes in as a NEW key, never by
   // repurposing these — that would silently rewrite what past sessions mean.
   deadlift:        { name: 'Conventional Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
-  db_deadlift:     { name: 'Conventional Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
+  db_deadlift:     { name: 'Conventional Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5, pair: true },
   pullup:          { name: 'Pull-ups (pronated)',      kind: 'bodyweight', inc: 5, bw: true },
   chinup:          { name: 'Supinated Pull-ups',       kind: 'bodyweight', inc: 5, bw: true },
   neutral_pullup:  { name: 'Neutral-Grip Pull-ups',    kind: 'bodyweight', inc: 5, bw: true },
   bb_row:          { name: 'Barbell Bent-Over Row',    kind: 'barbell',    inc: 5 },
-  db_row:          { name: 'Dumbbell Bent-Over Row',   kind: 'dumbbell',   inc: 5 },
+  db_row:          { name: 'Dumbbell Bent-Over Row',   kind: 'dumbbell',   inc: 5, pair: true },
   lat_pulldown:    { name: 'Lat Pulldown (wide)',      kind: 'machine',    inc: 10 },
   close_pulldown:  { name: 'Close-Grip Pulldown',      kind: 'machine',    inc: 10 },
   low_row:         { name: 'Seated Low Row',           kind: 'machine',    inc: 10 },
@@ -72,19 +79,19 @@ const EXERCISES = {
   bb_curl:         { name: 'Barbell Curl',             kind: 'barbell',    inc: 5 },
   // Supinated, both arms — the unqualified 'dumbbell curl'. The hammer
   // curls below are the neutral-grip version.
-  db_curl:         { name: 'Dumbbell Curl',            kind: 'dumbbell',   inc: 5 },
+  db_curl:         { name: 'Dumbbell Curl',            kind: 'dumbbell',   inc: 5, pair: true },
   db_curl_alt:     { name: 'Alternating Dumbbell Curl', kind: 'dumbbell',  inc: 5, uni: true },
   ez_curl:         { name: 'EZ-Bar Curl',              kind: 'barbell',    inc: 5 },
-  db_hammer:       { name: 'Dumbbell Hammer Curl',     kind: 'dumbbell',   inc: 5 },
+  db_hammer:       { name: 'Dumbbell Hammer Curl',     kind: 'dumbbell',   inc: 5, pair: true },
   db_hammer_alt:   { name: 'Alternating Hammer Curl',  kind: 'dumbbell',   inc: 5, uni: true },
   rope_hammer:     { name: 'Rope Hammer Curl',         kind: 'cable',      inc: 5 },
-  incline_db_curl: { name: 'Incline Dumbbell Curl',    kind: 'dumbbell',   inc: 5 },
+  incline_db_curl: { name: 'Incline Dumbbell Curl',    kind: 'dumbbell',   inc: 5, pair: true },
   db_row_1arm:     { name: 'One-Arm Dumbbell Row',     kind: 'dumbbell',   inc: 5, uni: true },
   db_row_alt:      { name: 'Alternating Dumbbell Row', kind: 'dumbbell',   inc: 5, uni: true },
   tbar_row:        { name: 'T-Bar Row',                kind: 'barbell',    inc: 10 },
   straight_arm_pd: { name: 'Straight-Arm Pulldown',    kind: 'cable',      inc: 5 },
   bb_shrug:        { name: 'Barbell Shrug',            kind: 'barbell',    inc: 10 },
-  db_shrug:        { name: 'Dumbbell Shrug',           kind: 'dumbbell',   inc: 5 },
+  db_shrug:        { name: 'Dumbbell Shrug',           kind: 'dumbbell',   inc: 5, pair: true },
   preacher_curl:   { name: 'Preacher Curl',            kind: 'barbell',    inc: 5 },
   cable_curl:      { name: 'Cable Curl',               kind: 'cable',      inc: 5 },
   conc_curl:       { name: 'Concentration Curl',       kind: 'dumbbell',   inc: 5, uni: true },
@@ -112,7 +119,7 @@ const EXERCISES = {
   step_up:         { name: 'Dumbbell Step-Up',         kind: 'dumbbell',   inc: 5, uni: true },
   leg_ext:         { name: 'Leg Extension',            kind: 'machine',    inc: 5 },
   rdl:             { name: 'Romanian Deadlift (Barbell)',  kind: 'barbell',  inc: 10 },
-  db_rdl:          { name: 'Romanian Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5 },
+  db_rdl:          { name: 'Romanian Deadlift (Dumbbell)', kind: 'dumbbell', inc: 5, pair: true },
   good_morning:    { name: 'Good Morning',             kind: 'barbell',    inc: 5 },
   hip_thrust:      { name: 'Barbell Hip Thrust',       kind: 'barbell',    inc: 10 },
   cable_crunch:    { name: 'Cable Crunch',             kind: 'cable',      inc: 5 },

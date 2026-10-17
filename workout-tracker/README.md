@@ -101,14 +101,18 @@ bodyweight from Settings is folded into the volume and 1RM math.
 Implement variations as separate movements when the loading differs enough that
 one progression line would be meaningless — **Barbell Deadlift** and **Dumbbell
 Deadlift** are distinct entries for exactly that reason, each with its own
-history, suggestion and trend. Dumbbell movements are logged per dumbbell,
-matching the rest of the app.
+history, suggestion and trend. The weight field for a dumbbell movement is
+always what's on *one* dumbbell — what you'd actually pick up. For a movement
+done with one in each hand (bench press, curls, rows, shrugs, presses, and
+so on — flagged `pair` in `program.js`), volume and estimated 1RM count both,
+so logging 25s reads as 50 lbs of load, not 25. A single-dumbbell movement
+like Goblet Squat isn't doubled.
 
 ## Tracking and comparison
 
 - **Today** — the current week and phase, plus this week's sessions/volume/sets against last week's.
 - **Session** — per-set weight and reps, tap-to-complete, auto-starting rest timer, PR flag when a set beats your best estimated 1RM, per-movement notes.
-- **History** — grouped by week, with each session's per-movement volume delta against the previous time you ran that day.
+- **History** — grouped by week, with each session's per-movement volume delta against the previous time you ran that day. A finished session can still be reopened with **Edit** — correct a typed-in number or add another movement you squeezed in after thinking you were done — and **Save** overwrites it in place rather than logging a duplicate.
 - **Progress** — pick any movement and chart estimated 1RM, top set, or total volume over time, with a full table underneath and a week-over-week Δ column.
 
 Estimated 1RM uses Epley (`weight × (1 + reps ÷ 30)`). It drifts above ~12 reps,

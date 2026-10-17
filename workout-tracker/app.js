@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-09-27.1';
+  const BUILD = '2026-10-17.1';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -58,6 +58,11 @@
     },
     sessions: [],
     active: null,
+    // Set while `active` is a reopened *finished* session rather than a new
+    // one — so Finish knows to overwrite that session in place instead of
+    // appending a duplicate, and so a mid-edit reload doesn't lose track of
+    // which mode it's in. Never part of a session's own stored shape.
+    editingSessionId: null,
   };
 
   /* Shallow-spreading DEFAULTS would replace `push` wholesale, so a stored
@@ -329,10 +334,13 @@
      Lift math
   ======================================================================= */
 
-  /* Bodyweight movements log *added* load; the bar for them is you. */
+  /* Bodyweight movements log *added* load; the bar for them is you. A `pair`
+     movement logs one dumbbell's weight, but both hands are moving one each
+     — the real load, for volume and e1rm alike, is double what's typed in. */
   function effectiveWeight(exId, w) {
     const ex = exOf(exId);
     if (ex.bw) return (Number(state.bodyweight) || 0) + (w || 0);
+    if (ex.pair) return (w || 0) * 2;
     return w || 0;
   }
 
@@ -1110,10 +1118,11 @@
     if (state.active) {
       const day = PROGRAM[state.active.day];
       const logged = state.active.entries.reduce((n, e) => n + workingSets(e).length, 0);
+      const editing = state.editingSessionId === state.active.id;
       html += `<div class="card" style="border-color:var(--series-1)">
         <div class="spread">
           <div>
-            <div class="small muted">In progress</div>
+            <div class="small muted">${editing ? 'Editing' : 'In progress'}</div>
             <h2 style="font-size:16px;margin-top:2px">${esc(day.name)} · ${logged} set${logged === 1 ? '' : 's'} logged</h2>
           </div>
           <button class="btn primary" data-action="resume">Resume</button>
@@ -1202,13 +1211,15 @@
   function viewSession() {
     const s = state.active;
     if (!s) { location.hash = '#/home'; return; }
+    const editing = state.editingSessionId === s.id;
     const day = PROGRAM[s.day];
     const phase = WAVE.find((w) => w.key === s.phase) || WAVE[0];
+    const finishAction = editing ? 'save-edit' : 'finish';
 
     setHeader(
       day.name,
-      `Week ${s.week + 1} · ${esc(phase.name)} · ${esc(fmtDate(s.date))}`,
-      `<button class="btn sm ghost" data-action="finish">Finish</button>`
+      `Week ${s.week + 1} · ${esc(phase.name)} · ${esc(fmtDate(s.date))}${editing ? ' · editing' : ''}`,
+      `<button class="btn sm ghost" data-action="${finishAction}">${editing ? 'Save' : 'Finish'}</button>`
     );
 
     const body = s.entries.map((e, i) => exerciseCard(e, i)).join('');
@@ -1219,11 +1230,12 @@
         <span class="muted" style="flex:1">${esc(phase.blurb)}</span>
       </div>
       ${body}
+      <button class="btn ghost block" data-action="add-movement">+ Movement</button>
       <div class="stack" style="margin-top:16px">
-        <button class="btn primary block" data-action="finish">Finish workout</button>
-        <button class="btn ghost block danger" data-action="discard">Discard session</button>
+        <button class="btn primary block" data-action="${finishAction}">${editing ? 'Save changes' : 'Finish workout'}</button>
+        <button class="btn ghost block danger" data-action="${editing ? 'cancel-edit' : 'discard'}">${editing ? 'Cancel editing' : 'Discard session'}</button>
       </div>`;
-    requestWakeLock();
+    if (!editing) requestWakeLock();
   }
 
   function exerciseCard(entry, i) {
@@ -1312,6 +1324,7 @@
         <button class="btn sm ghost" data-action="add-set" data-slot="${entry.slotId}">+ Set</button>
         ${entry.sets.length > 1 ? `<button class="btn sm ghost" data-action="del-set" data-slot="${entry.slotId}">− Set</button>` : ''}
         ${entry.note ? '' : `<button class="btn sm ghost" data-action="show-note" data-slot="${entry.slotId}">+ Note</button>`}
+        ${entry.slotId.startsWith('extra-') ? `<button class="btn sm ghost danger" data-action="remove-movement" data-slot="${entry.slotId}">Remove</button>` : ''}
         <span class="vol" data-vol="${entry.slotId}">${volLine(entry, best)}</span>
       </footer>
       <input class="note-input" type="text" data-field="note" data-slot="${entry.slotId}" ${entry.note ? '' : 'hidden'}
@@ -1412,7 +1425,8 @@
     if (!s) { location.hash = '#/history'; return; }
     const ph = WAVE.find((w) => w.key === s.phase) || WAVE[0];
     setHeader(PROGRAM[s.day].name, `${esc(fmtDateLong(s.date))} · Week ${s.week + 1}`,
-      `<button class="btn sm danger" data-action="delete-session" data-arg="${s.id}">Delete</button>`);
+      `<button class="btn sm ghost" data-action="edit-session" data-arg="${s.id}">Edit</button>
+       <button class="btn sm danger" data-action="delete-session" data-arg="${s.id}">Delete</button>`);
 
     // The same day, one session earlier — the natural comparison.
     const prior = sortedSessions().filter((x) => x.day === s.day && x.ts < s.ts)[0];
@@ -1743,10 +1757,14 @@
   const actions = {
     start(dayKey) {
       if (state.active && state.active.day !== dayKey) {
-        if (!confirm(`You have an unfinished ${PROGRAM[state.active.day].name} session. Discard it?`)) return;
+        const what = state.editingSessionId ? 'an edit in progress on a' : 'an unfinished';
+        if (!confirm(`You have ${what} ${PROGRAM[state.active.day].name} session. Discard it?`)) return;
       }
       sideUnlinked.clear();
-      if (!state.active || state.active.day !== dayKey) state.active = newSession(dayKey);
+      if (!state.active || state.active.day !== dayKey) {
+        state.active = newSession(dayKey);
+        state.editingSessionId = null;
+      }
       save();
       location.hash = '#/session';
     },
@@ -1825,6 +1843,54 @@
       render();
     },
 
+    /* Appends an ad-hoc entry, not one of the day's fixed program slots — its
+       slotId carries the `extra-` prefix so it's recognizable as removable
+       and as not belonging to any PROGRAM slot. Defaults to the first movement
+       in the day's pool that isn't already in the session; the swap picker on
+       the new card is how you actually choose the movement. */
+    'add-movement'() {
+      const s = state.active;
+      if (!s) return;
+      const dayKey = s.day;
+      const used = new Set(s.entries.map((e) => e.exerciseId));
+      const pool = DAY_POOL[dayKey] || [];
+      let pick = null;
+      for (const g of pool) { pick = g.ids.find((id) => !used.has(id)); if (pick) break; }
+      if (!pick) pick = pool[0] && pool[0].ids[0];
+      if (!pick) return;
+
+      const rx = prescriptionFor(dayKey, pick, s.week, state.cycleLength);
+      const home = homeSlotOf(dayKey, pick);
+      const grp = poolGroupOf(dayKey, pick);
+      s.entries.push({
+        slotId: 'extra-' + uid(),
+        role: home ? home.role : grp ? grp.group : exOf(pick).name,
+        exerciseId: pick,
+        options: [pick],
+        targetSets: rx.sets,
+        repMin: rx.repMin,
+        repMax: rx.repMax,
+        repTarget: rx.repTarget,
+        load: rx.load,
+        sets: Array.from({ length: rx.sets }, () => ({ w: null, r: null, w2: null, r2: null, done: false, t: null })),
+        note: '',
+      });
+      save();
+      render();
+    },
+
+    'remove-movement'(slotId) {
+      const s = state.active;
+      if (!s || !slotId.startsWith('extra-')) return;
+      const entry = findEntry(slotId);
+      if (!entry) return;
+      const logged = workingSets(entry).length;
+      if (logged && !confirm(`Remove ${exOf(entry.exerciseId).name}? ${logged} logged set${logged === 1 ? '' : 's'} will be lost.`)) return;
+      s.entries = s.entries.filter((e) => e.slotId !== slotId);
+      save();
+      render();
+    },
+
     finish() {
       const s = state.active;
       if (!s) return;
@@ -1852,10 +1918,66 @@
       if (!confirm('Discard this session? Nothing will be saved.')) return;
       sideUnlinked.clear();
       state.active = null;
+      state.editingSessionId = null;
       stopRest();
       releaseWakeLock();
       save();
       location.hash = '#/home';
+    },
+
+    /* Reopens an already-finished session so it can be added to or corrected.
+       The clone is what `active` holds while editing; nothing touches the
+       stored session until Save. */
+    'edit-session'(id) {
+      if (state.editingSessionId === id && state.active) { location.hash = '#/session'; return; }
+      const s = state.sessions.find((x) => x.id === id);
+      if (!s) return;
+      if (state.active) {
+        const what = state.editingSessionId ? 'Discard your other in-progress edit' : `Discard your unfinished ${PROGRAM[state.active.day].name} session`;
+        if (!confirm(`${what} to edit this one instead?`)) return;
+      }
+      sideUnlinked.clear();
+      state.active = JSON.parse(JSON.stringify(s));
+      state.editingSessionId = id;
+      save();
+      location.hash = '#/session';
+    },
+
+    'save-edit'() {
+      const s = state.active;
+      if (!s || state.editingSessionId !== s.id) return;
+      const logged = s.entries.reduce((n, e) => n + workingSets(e).length, 0);
+      if (!logged) { toast('Nothing logged — nothing to save'); return; }
+      if (!confirm(`Save changes to this ${PROGRAM[s.day].name} session? (${logged} sets)`)) return;
+
+      // Drop empty sets so history stays honest, same as a normal finish.
+      s.entries.forEach((e) => { e.sets = e.sets.filter((x) => (x.r && x.r > 0) || (x.r2 && x.r2 > 0)); });
+      s.entries = s.entries.filter((e) => e.sets.length);
+
+      const idx = state.sessions.findIndex((x) => x.id === s.id);
+      if (idx === -1) return; // deleted out from under the edit — nothing to overwrite
+      state.sessions[idx] = s;
+      state.active = null;
+      state.editingSessionId = null;
+      sideUnlinked.clear();
+      stopRest();
+      releaseWakeLock();
+      writeNow();
+      writeAutoBackup();
+      toast('Changes saved');
+      location.hash = '#/session/' + s.id;
+    },
+
+    'cancel-edit'() {
+      if (!confirm('Discard these edits? Nothing you changed will be saved.')) return;
+      const id = state.editingSessionId;
+      sideUnlinked.clear();
+      state.active = null;
+      state.editingSessionId = null;
+      stopRest();
+      releaseWakeLock();
+      save();
+      location.hash = id ? '#/session/' + id : '#/home';
     },
 
     async 'toggle-rest-notify'() {
@@ -1934,6 +2056,10 @@
     'delete-session'(id) {
       if (!confirm('Delete this session permanently?')) return;
       state.sessions = state.sessions.filter((s) => s.id !== id);
+      if (state.editingSessionId === id) {
+        state.active = null;
+        state.editingSessionId = null;
+      }
       save();
       location.hash = '#/history';
     },
