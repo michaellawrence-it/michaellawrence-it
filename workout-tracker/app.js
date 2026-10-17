@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-10-17.1';
+  const BUILD = '2026-10-17.2';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -1132,6 +1132,8 @@
 
     html += `<div class="day-grid">` + DAY_KEYS.map(dayCard).join('') + `</div>`;
 
+    html += `<div style="margin-top:10px">${freestyleCard()}</div>`;
+
     html += weekCompareCard();
 
     $('#view').innerHTML = html;
@@ -1155,6 +1157,27 @@
         <span class="name">${esc(day.name)}</span>
         <span class="meta" style="display:block">${esc(meta)}</span>
         <span class="meta" style="display:block">${rx.length} movements${swapped ? ` · ${swapped} swapped vs last week` : ''}</span>
+      </span>
+      <span class="chev">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+      </span>
+    </button>`;
+  }
+
+  /* Not part of the weekly rotation — no wave, no prescription, nothing
+     swapped in or out automatically. Shown separately from the day-grid so
+     it reads as something you reach for on purpose, not a fourth default. */
+  function freestyleCard() {
+    const last = sortedSessions().find((s) => s.day === 'freestyle');
+    const meta = last
+      ? `Last ${relDate(last.date)} · ${fmtInt(sessionVolume(last))} ${unitLabel()} volume`
+      : 'No plan — add whatever you want, on the spot';
+
+    return `<button class="day-btn freestyle" data-day="freestyle" data-action="start" data-arg="freestyle">
+      <span class="dot"></span>
+      <span style="flex:1;min-width:0">
+        <span class="name">Freestyle</span>
+        <span class="meta" style="display:block">${esc(meta)}</span>
       </span>
       <span class="chev">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
@@ -1212,23 +1235,28 @@
     const s = state.active;
     if (!s) { location.hash = '#/home'; return; }
     const editing = state.editingSessionId === s.id;
+    const freestyle = s.day === 'freestyle';
     const day = PROGRAM[s.day];
     const phase = WAVE.find((w) => w.key === s.phase) || WAVE[0];
     const finishAction = editing ? 'save-edit' : 'finish';
 
     setHeader(
       day.name,
-      `Week ${s.week + 1} · ${esc(phase.name)} · ${esc(fmtDate(s.date))}${editing ? ' · editing' : ''}`,
+      freestyle
+        ? `${esc(fmtDate(s.date))}${editing ? ' · editing' : ''}`
+        : `Week ${s.week + 1} · ${esc(phase.name)} · ${esc(fmtDate(s.date))}${editing ? ' · editing' : ''}`,
       `<button class="btn sm ghost" data-action="${finishAction}">${editing ? 'Save' : 'Finish'}</button>`
     );
 
-    const body = s.entries.map((e, i) => exerciseCard(e, i)).join('');
+    const body = s.entries.length
+      ? s.entries.map((e, i) => exerciseCard(e, i)).join('')
+      : `<div class="card empty">${ICON_EMPTY}<div>Nothing added yet — tap + Movement below for whatever you're hitting today.</div></div>`;
 
     $('#view').innerHTML = `
-      <div class="card small" style="display:flex;gap:9px;align-items:flex-start">
+      ${freestyle ? '' : `<div class="card small" style="display:flex;gap:9px;align-items:flex-start">
         ${phasePill(phase)}
         <span class="muted" style="flex:1">${esc(phase.blurb)}</span>
-      </div>
+      </div>`}
       ${body}
       <button class="btn ghost block" data-action="add-movement">+ Movement</button>
       <div class="stack" style="margin-top:16px">
@@ -1336,7 +1364,7 @@
      last worked — so picking is an informed choice, not a guess. */
   function movementPicker(entry) {
     const dayKey = state.active ? state.active.day : dayOfExercise(entry.exerciseId);
-    const groups = DAY_POOL[dayKey] || [];
+    const groups = dayKey === 'freestyle' ? allPoolGroups() : (DAY_POOL[dayKey] || []);
     const idx = lastDoneIndex();
     const seen = new Set();
 
@@ -1423,8 +1451,9 @@
   function viewSessionDetail(id) {
     const s = state.sessions.find((x) => x.id === id);
     if (!s) { location.hash = '#/history'; return; }
+    const freestyle = s.day === 'freestyle';
     const ph = WAVE.find((w) => w.key === s.phase) || WAVE[0];
-    setHeader(PROGRAM[s.day].name, `${esc(fmtDateLong(s.date))} · Week ${s.week + 1}`,
+    setHeader(PROGRAM[s.day].name, freestyle ? esc(fmtDateLong(s.date)) : `${esc(fmtDateLong(s.date))} · Week ${s.week + 1}`,
       `<button class="btn sm ghost" data-action="edit-session" data-arg="${s.id}">Edit</button>
        <button class="btn sm danger" data-action="delete-session" data-arg="${s.id}">Delete</button>`);
 
@@ -1437,7 +1466,7 @@
 
     const verdict = sessionVerdict(s);
 
-    let html = `<div class="card small row" style="gap:9px">${phasePill(ph)}
+    let html = `<div class="card small row" style="gap:9px">${freestyle ? '' : phasePill(ph)}
       <span class="muted">${esc(PROGRAM[s.day].name)} · ${sets} sets${
         prior ? ` · last done ${esc(relDate(prior.date))}` : ' · first time logged'
       }</span></div>`;
@@ -1853,7 +1882,7 @@
       if (!s) return;
       const dayKey = s.day;
       const used = new Set(s.entries.map((e) => e.exerciseId));
-      const pool = DAY_POOL[dayKey] || [];
+      const pool = dayKey === 'freestyle' ? allPoolGroups() : (DAY_POOL[dayKey] || []);
       let pick = null;
       for (const g of pool) { pick = g.ids.find((id) => !used.has(id)); if (pick) break; }
       if (!pick) pick = pool[0] && pool[0].ids[0];
@@ -1861,7 +1890,7 @@
 
       const rx = prescriptionFor(dayKey, pick, s.week, state.cycleLength);
       const home = homeSlotOf(dayKey, pick);
-      const grp = poolGroupOf(dayKey, pick);
+      const grp = poolGroupOf(dayKey, pick) || poolGroupOf(dayOfExercise(pick), pick);
       s.entries.push({
         slotId: 'extra-' + uid(),
         role: home ? home.role : grp ? grp.group : exOf(pick).name,
@@ -2202,7 +2231,7 @@
       entry.load = rx.load;
 
       const home = homeSlotOf(dayKey, el.value);
-      const grp = poolGroupOf(dayKey, el.value);
+      const grp = poolGroupOf(dayKey, el.value) || poolGroupOf(dayOfExercise(el.value), el.value);
       entry.role = home ? home.role : grp ? grp.group : entry.role;
 
       // Keep every set already logged; only empty rows are added or dropped.

@@ -40,6 +40,18 @@ One deliberate change to the original prescription: the pulldown/row slot is
 stored as a **range** (3×8–12) rather than a flat 3×10. Double progression needs
 a range to climb, so a fixed rep target has nowhere to go.
 
+## Freestyle
+
+A fourth option, shown separately from Push/Pull/Legs on Today — it's not part
+of the weekly rotation and never comes up on its own; you have to pick it. It
+starts with nothing programmed: no slots, no wave, no prescription. Add
+whatever you're hitting with **+ Movement**, choosing from the full catalog —
+every movement across all three days, not just one day's pool — and log it
+like any other session. Good for a weekend with no plan where you just want to
+catch up on whatever got skipped during the week. Everything logged there
+still counts toward History, Progress and weekly volume, same as any other
+session.
+
 ## How the weekly variation works
 
 Two independent knobs, both automatic:

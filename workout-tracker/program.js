@@ -184,6 +184,16 @@ const PROGRAM = {
       { id: 'g7', role: 'Hanging Knee Raises',       sets: [3, 3], reps: [12, 15], options: ['hanging_knee', 'hanging_leg', 'captains_chair'] },
     ],
   },
+  // No slots — nothing to prescribe or wave. A freestyle session starts
+  // with zero movements; every one of them is added by hand from the full
+  // catalog. Deliberately absent from DAY_KEYS: it's not part of the push/
+  // pull/legs rotation and never shows up as a default, only as something
+  // you pick on purpose.
+  freestyle: {
+    name: 'Freestyle',
+    accent: 'freestyle',
+    slots: [],
+  },
 };
 
 const DAY_KEYS = ['push', 'pull', 'legs'];
@@ -249,6 +259,25 @@ function poolGroupOf(dayKey, exId) {
   return (DAY_POOL[dayKey] || []).find((g) => g.ids.includes(id)) || null;
 }
 
+/* Every movement, grouped the same way DAY_POOL groups each day, but spanning
+   all three — the picker a freestyle session uses, since it isn't scoped to
+   one day's pool. Group labels are prefixed with the day so Push/Pull/Legs
+   stay distinguishable in one long list. A handful of movements (dumbbell
+   shrugs, both dip grips, the alternating lateral raise) are offered on more
+   than one day; each shows up once here, under whichever day lists it first. */
+function allPoolGroups() {
+  const seen = new Set();
+  const out = [];
+  DAY_KEYS.forEach((dk) => {
+    DAY_POOL[dk].forEach((g) => {
+      const ids = g.ids.filter((id) => !seen.has(id));
+      ids.forEach((id) => seen.add(id));
+      if (ids.length) out.push({ ...g, group: `${PROGRAM[dk].name} — ${g.group}`, ids });
+    });
+  });
+  return out;
+}
+
 /* The slot that programs this movement, if any. */
 function homeSlotOf(dayKey, exId) {
   const id = resolveExerciseId(exId);
@@ -256,7 +285,10 @@ function homeSlotOf(dayKey, exId) {
 }
 
 /* Prescription to use when a movement is chosen by hand. Programmed movements
-   keep their own slot's numbers; everything else falls back to its group. */
+   keep their own slot's numbers; everything else falls back to its group —
+   the day's own group if it has one there, otherwise the movement's natural
+   day (freestyle has no groups of its own, so everything added there lands
+   here). */
 function prescriptionFor(dayKey, exId, week, cycleLength) {
   const home = homeSlotOf(dayKey, exId);
   if (home) {
@@ -264,7 +296,7 @@ function prescriptionFor(dayKey, exId, week, cycleLength) {
     return { sets: rx.sets, repMin: rx.repMin, repMax: rx.repMax, repTarget: rx.repTarget, load: rx.load };
   }
   const phase = phaseFor(week, cycleLength);
-  const g = poolGroupOf(dayKey, exId);
+  const g = poolGroupOf(dayKey, exId) || poolGroupOf(dayOfExercise(exId), exId);
   const [rMin, rMax] = g ? g.reps : [8, 12];
   return {
     sets: g ? g.sets : 3,
