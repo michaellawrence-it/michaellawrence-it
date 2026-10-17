@@ -43,6 +43,8 @@ const EXERCISES = {
   rope_pushdown:   { name: 'Rope Tricep Pushdown',     kind: 'cable',      inc: 5 },
   bar_pushdown:    { name: 'Straight-Bar Pushdown',    kind: 'cable',      inc: 5 },
   vbar_pushdown:   { name: 'V-Bar Pushdown',           kind: 'cable',      inc: 5 },
+  // One arm at a time, so each set records a left and a right independently.
+  pushdown_1arm:   { name: 'Single-Arm Tricep Pushdown', kind: 'cable',    inc: 5, uni: true },
   db_oh_ext:       { name: 'DB Overhead Tricep Ext.',  kind: 'dumbbell',   inc: 5 },
   cable_oh_ext:    { name: 'Cable Overhead Tricep Ext.', kind: 'cable',    inc: 5 },
   ez_skullcrusher: { name: 'EZ-Bar Skullcrusher',      kind: 'barbell',    inc: 5 },
@@ -217,7 +219,7 @@ const DAY_POOL = {
     { group: 'Chest isolation',   sets: 3, reps: [10, 12], ids: ['cable_fly', 'pec_deck', 'db_fly', 'incline_db_fly'] },
     { group: 'Shoulder press',    sets: 3, reps: [6, 10],  ids: ['ohp_bb', 'db_ohp', 'arnold_press', 'machine_ohp'] },
     { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'cable_lat_raise_alt', 'machine_lat_raise', 'db_front_raise'] },
-    { group: 'Triceps',           sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown', 'bench_dip'] },
+    { group: 'Triceps',           sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown', 'pushdown_1arm', 'bench_dip'] },
   ],
   pull: [
     { group: 'Hinge',             sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift'] },

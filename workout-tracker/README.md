@@ -74,7 +74,7 @@ compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
 
 **The rotation suggests; it never locks you in.** Tapping the movement name on
-each card opens a search sheet offering *every* movement for that day — 31 on
+each card opens a search sheet offering *every* movement for that day — 32 on
 Push, 36 on Pull, 28 on Legs — grouped by pattern, each labelled with when you
 last did it (`Dips · 3d ago`). Type to filter by name; the groups narrow as
 you go. If you want to chase a lift this week, pick it, whatever the rotation
