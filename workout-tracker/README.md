@@ -73,11 +73,12 @@ rotations are staggered so the whole session never turns over at once. The
 compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
 
-**The rotation suggests; it never locks you in.** The movement name on each card
-is a picker offering *every* movement for that day — 31 on Push, 36 on Pull, 28
-on Legs — grouped by pattern, each labelled with when you last did it
-(`Dips · 3d ago`). If you want to chase a lift this week, pick it,
-whatever the rotation had planned.
+**The rotation suggests; it never locks you in.** Tapping the movement name on
+each card opens a search sheet offering *every* movement for that day — 31 on
+Push, 36 on Pull, 28 on Legs — grouped by pattern, each labelled with when you
+last did it (`Dips · 3d ago`). Type to filter by name; the groups narrow as
+you go. If you want to chase a lift this week, pick it, whatever the rotation
+had planned.
 
 A few movements are offered on more than one day: dumbbell shrugs on Pull and
 Legs, and the alternating cable lateral raise and both dip grips on Push and

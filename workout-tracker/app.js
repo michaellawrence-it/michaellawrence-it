@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-10-17.2';
+  const BUILD = '2026-10-17.3';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
@@ -659,6 +659,11 @@
      equality check above re-derives divergence after a reload. */
   const sideUnlinked = new Set();
 
+  /* Which entry's movement picker is open, and what's typed into its search
+     box. Pure UI state — never persisted, reset whenever the picker closes. */
+  let pickerFor = null;
+  let pickerQuery = '';
+
   function findEntry(slotId) {
     return state.active ? state.active.entries.find((e) => e.slotId === slotId) : null;
   }
@@ -1262,8 +1267,10 @@
       <div class="stack" style="margin-top:16px">
         <button class="btn primary block" data-action="${finishAction}">${editing ? 'Save changes' : 'Finish workout'}</button>
         <button class="btn ghost block danger" data-action="${editing ? 'cancel-edit' : 'discard'}">${editing ? 'Cancel editing' : 'Discard session'}</button>
-      </div>`;
+      </div>
+      ${pickerOverlay()}`;
     if (!editing) requestWakeLock();
+    if (pickerFor) { const el = $('#picker-search'); if (el) el.focus(); }
   }
 
   function exerciseCard(entry, i) {
@@ -1360,33 +1367,100 @@
     </section>`;
   }
 
-  /* Every movement for the day, grouped by pattern, each showing when it was
-     last worked — so picking is an informed choice, not a guess. */
-  function movementPicker(entry) {
-    const dayKey = state.active ? state.active.day : dayOfExercise(entry.exerciseId);
-    const groups = dayKey === 'freestyle' ? allPoolGroups() : (DAY_POOL[dayKey] || []);
-    const idx = lastDoneIndex();
-    const seen = new Set();
+  /* The day's movement groups — every day's own pool, or the full catalog
+     (spanning all three days) for freestyle, which has no pool of its own. */
+  function groupsForDay(dayKey) {
+    return dayKey === 'freestyle' ? allPoolGroups() : (DAY_POOL[dayKey] || []);
+  }
 
-    const opt = (id) => {
+  /* The movement name doubles as the picker's trigger — tap it to search.
+     The actual list lives in the picker overlay below. */
+  function movementPicker(entry) {
+    return `<button type="button" class="ex-picker" data-action="open-picker" data-slot="${entry.slotId}"
+              aria-haspopup="dialog" aria-label="Movement for this slot — ${esc(exOf(entry.exerciseId).name)}">${
+                esc(exOf(entry.exerciseId).name)}</button>`;
+  }
+
+  /* Rewires a slot onto a new movement: carries the new movement's own
+     prescription across (a slot programmed 4×5–8 must not hand that target
+     to lateral raises), keeps every set already logged, and only pads or
+     trims empty rows to match the new target. */
+  function applySwap(entry, dayKey, newId) {
+    entry.exerciseId = newId;
+
+    const rx = prescriptionFor(dayKey, newId, state.active.week, state.cycleLength);
+    entry.targetSets = rx.sets;
+    entry.repMin = rx.repMin;
+    entry.repMax = rx.repMax;
+    entry.repTarget = rx.repTarget;
+    entry.load = rx.load;
+
+    const home = homeSlotOf(dayKey, newId);
+    const grp = poolGroupOf(dayKey, newId) || poolGroupOf(dayOfExercise(newId), newId);
+    entry.role = home ? home.role : grp ? grp.group : entry.role;
+
+    const kept = entry.sets.filter((s) => s.r && s.r > 0);
+    while (kept.length < rx.sets) kept.push({ w: null, r: null, w2: null, r2: null, done: false, t: null });
+    entry.sets = kept;
+  }
+
+  /* Every movement for the entry's day, grouped by pattern and filtered by
+     the picker's search box, each showing when it was last worked — so
+     picking is an informed choice, not a guess. */
+  function pickerResultsHtml(entry) {
+    const dayKey = state.active ? state.active.day : dayOfExercise(entry.exerciseId);
+    const groups = groupsForDay(dayKey);
+    const idx = lastDoneIndex();
+    const q = pickerQuery.trim().toLowerCase();
+    const seen = new Set();
+    let rows = '';
+
+    const row = (id) => {
       seen.add(id);
       const last = idx.get(id);
-      const label = exOf(id).name + (last ? ` · ${relDate(last.date)}` : '');
-      return `<option value="${esc(id)}"${id === entry.exerciseId ? ' selected' : ''}>${esc(label)}</option>`;
+      return `<button type="button" class="picker-row${id === entry.exerciseId ? ' current' : ''}"
+                data-action="pick-movement" data-slot="${entry.slotId}" data-arg="${esc(id)}">
+                <span>${esc(exOf(id).name)}</span>
+                <span class="meta">${last ? esc(relDate(last.date)) : ''}</span>
+              </button>`;
     };
 
-    let html = groups
-      .map((g) => `<optgroup label="${esc(g.group)}">${g.ids.map(opt).join('')}</optgroup>`)
-      .join('');
+    groups.forEach((g) => {
+      const ids = g.ids.filter((id) => !q || exOf(id).name.toLowerCase().includes(q));
+      if (!ids.length) return;
+      rows += `<div class="picker-group">${esc(g.group)}</div>${ids.map(row).join('')}`;
+    });
 
-    // Whatever is currently selected must always be in the list, even if it
-    // predates the pool (old backup, hand-edited data).
-    if (!seen.has(entry.exerciseId)) {
-      html += `<optgroup label="Other"><option value="${esc(entry.exerciseId)}" selected>${esc(exOf(entry.exerciseId).name)}</option></optgroup>`;
+    // Whatever is currently selected must always be reachable, even if it
+    // predates the pool (old backup, hand-edited data) or the search hides it.
+    if (!seen.has(entry.exerciseId) && (!q || exOf(entry.exerciseId).name.toLowerCase().includes(q))) {
+      rows += `<div class="picker-group">Other</div>${row(entry.exerciseId)}`;
     }
 
-    return `<select class="ex-picker" data-field="swap" data-slot="${entry.slotId}"
-              aria-label="Movement for this slot">${html}</select>`;
+    return rows || `<div class="picker-empty">No movement matches “${esc(pickerQuery)}”.</div>`;
+  }
+
+  /* The search sheet itself. Session-scoped UI state (pickerFor/pickerQuery)
+     lives outside `state` on purpose — it's never worth persisting. */
+  function pickerOverlay() {
+    if (!pickerFor) return '';
+    const entry = findEntry(pickerFor);
+    if (!entry) return '';
+    return `<div class="picker-backdrop" data-action="close-picker">
+      <div class="picker-sheet" data-action="noop">
+        <div class="picker-head">
+          <h2>Choose movement</h2>
+          <button type="button" class="picker-close" data-action="close-picker" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
+        <div class="picker-search-wrap">
+          <input type="text" id="picker-search" value="${esc(pickerQuery)}"
+                 placeholder="Search movements…" autocomplete="off" autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="picker-list" id="picker-list">${pickerResultsHtml(entry)}</div>
+      </div>
+    </div>`;
   }
 
   function volLine(entry, best) {
@@ -1882,7 +1956,7 @@
       if (!s) return;
       const dayKey = s.day;
       const used = new Set(s.entries.map((e) => e.exerciseId));
-      const pool = dayKey === 'freestyle' ? allPoolGroups() : (DAY_POOL[dayKey] || []);
+      const pool = groupsForDay(dayKey);
       let pick = null;
       for (const g of pool) { pick = g.ids.find((id) => !used.has(id)); if (pick) break; }
       if (!pick) pick = pool[0] && pool[0].ids[0];
@@ -1916,6 +1990,34 @@
       const logged = workingSets(entry).length;
       if (logged && !confirm(`Remove ${exOf(entry.exerciseId).name}? ${logged} logged set${logged === 1 ? '' : 's'} will be lost.`)) return;
       s.entries = s.entries.filter((e) => e.slotId !== slotId);
+      save();
+      render();
+    },
+
+    'open-picker'(slotId) {
+      pickerFor = slotId;
+      pickerQuery = '';
+      render();
+    },
+
+    'close-picker'() {
+      pickerFor = null;
+      pickerQuery = '';
+      render();
+    },
+
+    // Swallows clicks inside the picker sheet so they don't bubble to the
+    // backdrop's close-picker handler.
+    noop() {},
+
+    'pick-movement'(_, el) {
+      const slotId = el.dataset.slot;
+      const id = el.dataset.arg;
+      const entry = findEntry(slotId);
+      if (!entry || !state.active || !id) return;
+      applySwap(entry, state.active.day, id);
+      pickerFor = null;
+      pickerQuery = '';
       save();
       render();
     },
@@ -2213,36 +2315,6 @@
       return;
     }
 
-    if (f === 'swap') {
-      const entry = findEntry(el.dataset.slot);
-      if (!entry || !state.active) return;
-      const dayKey = state.active.day;
-      entry.exerciseId = el.value;
-
-      /* Carry the new movement's own prescription across — a slot programmed
-         4×5–8 must not hand that target to lateral raises. A movement the
-         program schedules keeps its slot's waved numbers; anything else falls
-         back to its pattern group. */
-      const rx = prescriptionFor(dayKey, el.value, state.active.week, state.cycleLength);
-      entry.targetSets = rx.sets;
-      entry.repMin = rx.repMin;
-      entry.repMax = rx.repMax;
-      entry.repTarget = rx.repTarget;
-      entry.load = rx.load;
-
-      const home = homeSlotOf(dayKey, el.value);
-      const grp = poolGroupOf(dayKey, el.value) || poolGroupOf(dayOfExercise(el.value), el.value);
-      entry.role = home ? home.role : grp ? grp.group : entry.role;
-
-      // Keep every set already logged; only empty rows are added or dropped.
-      const kept = entry.sets.filter((s) => s.r && s.r > 0);
-      while (kept.length < rx.sets) kept.push({ w: null, r: null, w2: null, r2: null, done: false, t: null });
-      entry.sets = kept;
-
-      save();
-      render();
-      return;
-    }
 
     if (f === 'progress-ex') { progressEx = el.value; render(); return; }
 
@@ -2410,6 +2482,15 @@
 
   document.addEventListener('input', (ev) => {
     const t = ev.target;
+    // Patches just the results list, so the search field itself never gets
+    // re-rendered out from under the cursor mid-keystroke.
+    if (t.id === 'picker-search') {
+      pickerQuery = t.value;
+      const entry = findEntry(pickerFor);
+      const list = $('#picker-list');
+      if (entry && list) list.innerHTML = pickerResultsHtml(entry);
+      return;
+    }
     if (t.dataset && t.dataset.field && !changeOnly(t)) onFieldInput(t);
   });
   document.addEventListener('change', (ev) => {
