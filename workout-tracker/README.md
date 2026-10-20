@@ -19,7 +19,7 @@ The three sessions are the ones you already run:
 | Incline Press — 4×5–8 | Barbell Deadlift — 3–4×4–6 | Squats — 4×5–8 |
 | Flat Bench Press — 3×8–10 | Pull-ups — 3–4 sets | Leg Press — 3×8–10 |
 | Dips (wide / neutral grip) — 3×8–10 | Barbell Rows — 3×8–10 | Leg Curl — 3×10–12 |
-| Overhead Press — 3×6–8 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
+| Overhead Press (barbell / dumbbell) — 3×6–8 | Lat Pulldown / Low Row — 3×8–12 | Hip Adductor — 3×12–15 |
 | Chest Fly — 3×10–12 | Face Pulls — 3×12–15 | Hip Abductor — 3×12–15 |
 | Lateral Raises — 3×12–15 | Barbell Curls — 3×8–10 | Calf Raises — 4×12–15 |
 | Overhead Tricep Ext. — 3×10–12 | Hammer Curls — 3×10–12 | Hanging Knee Raises — 3×12–15 |
@@ -35,6 +35,11 @@ and in Progress, since only you know which grip they were. Tricep pushdowns are
 retired from the program but stay in the exercise catalog, so any logged
 pushdown history is still readable under
 Progress → *No longer in the program*.
+
+Overhead Press is the one compound that does rotate: it alternates Barbell
+Overhead Press and Seated Dumbbell Press week to week, same principle as the
+dip-grip split above — each keeps its own progression line, and either is
+still pickable by hand regardless of whose week it is.
 
 One deliberate change to the original prescription: the pulldown/row slot is
 stored as a **range** (3×8–12) rather than a flat 3×10. Double progression needs

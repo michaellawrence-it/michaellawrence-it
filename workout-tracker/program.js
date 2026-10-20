@@ -30,7 +30,7 @@ const EXERCISES = {
   dips:            { name: 'Dips',                     kind: 'bodyweight', inc: 5, bw: true },
   wide_dip:        { name: 'Wide-Grip Dip',            kind: 'bodyweight', inc: 5, bw: true },
   neutral_dip:     { name: 'Neutral-Grip Dip',         kind: 'bodyweight', inc: 5, bw: true },
-  ohp_bb:          { name: 'Overhead Press',           kind: 'barbell',    inc: 5 },
+  ohp_bb:          { name: 'Barbell Overhead Press',   kind: 'barbell',    inc: 5 },
   cable_fly:       { name: 'Cable Chest Fly',          kind: 'cable',      inc: 5 },
   db_fly:          { name: 'Dumbbell Chest Fly',       kind: 'dumbbell',   inc: 5, pair: true },
   pec_deck:        { name: 'Pec Deck',                 kind: 'machine',    inc: 5 },
@@ -135,9 +135,13 @@ const EXERCISES = {
    entry is the default and the pool advances one step per week, offset per slot
    so the whole session never turns over at once.
 
-   Compound anchors (bench, OHP, deadlift, row, squat) have a single option on
+   Compound anchors (bench, deadlift, row, squat) have a single option on
    purpose — you cannot progressively overload a lift you keep swapping. The
-   variation lives in the accessories and in the rep/set wave below.
+   variation lives in the accessories and in the rep/set wave below. Overhead
+   Press is the one exception: it alternates barbell and dumbbell week to
+   week, same principle as the dip-grip split — each keeps its own
+   progression line, and either can be picked by hand regardless of whose
+   week it is.
 --------------------------------------------------------------------------- */
 const PROGRAM = {
   push: {
@@ -151,7 +155,7 @@ const PROGRAM = {
       { id: 'p1', role: 'Incline Press',             sets: [4, 4], reps: [5, 8],   options: ['incline_bb'], anchor: true },
       { id: 'p2', role: 'Flat Bench Press',          sets: [3, 3], reps: [8, 10],  options: ['bb_bench'], anchor: true },
       { id: 'p3', role: 'Dips',                      sets: [3, 3], reps: [8, 10],  options: ['wide_dip', 'neutral_dip'] },
-      { id: 'p4', role: 'Overhead Press',            sets: [3, 3], reps: [6, 8],   options: ['ohp_bb'], anchor: true },
+      { id: 'p4', role: 'Overhead Press',            sets: [3, 3], reps: [6, 8],   options: ['ohp_bb', 'db_ohp'] },
       { id: 'p5', role: 'Chest Fly',                 sets: [3, 3], reps: [10, 12], options: ['cable_fly', 'pec_deck', 'db_fly'] },
       { id: 'p6', role: 'Lateral Raises',            sets: [3, 3], reps: [12, 15], options: ['db_lat_raise', 'cable_lat_raise', 'machine_lat_raise'] },
       // One tricep movement, not two: dips already supply heavy elbow
