@@ -224,6 +224,10 @@ const DAY_POOL = {
     { group: 'Shoulder press',    sets: 3, reps: [6, 10],  ids: ['ohp_bb', 'db_ohp', 'arnold_press', 'machine_ohp'] },
     { group: 'Delts',             sets: 3, reps: [12, 15], ids: ['db_lat_raise', 'cable_lat_raise', 'cable_lat_raise_alt', 'machine_lat_raise', 'db_front_raise'] },
     { group: 'Triceps',           sets: 3, reps: [10, 12], ids: ['db_oh_ext', 'cable_oh_ext', 'ez_skullcrusher', 'rope_pushdown', 'bar_pushdown', 'vbar_pushdown', 'pushdown_1arm', 'bench_dip'] },
+    /* Traps are a pull muscle, but shrugs fit a shoulder-heavy push day too —
+       same ids as on Pull and Legs, so one progression line covers it
+       wherever you do it. */
+    { group: 'Traps',             sets: 3, reps: [10, 15], ids: ['bb_shrug', 'db_shrug'] },
   ],
   pull: [
     { group: 'Hinge',             sets: 3, reps: [6, 10],  ids: ['deadlift', 'db_deadlift'] },

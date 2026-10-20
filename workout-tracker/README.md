@@ -79,16 +79,17 @@ compound anchors don't rotate: you cannot progressively overload a lift that
 keeps changing, so the variation belongs in the accessories.
 
 **The rotation suggests; it never locks you in.** Tapping the movement name on
-each card opens a search sheet offering *every* movement for that day — 32 on
+each card opens a search sheet offering *every* movement for that day — 34 on
 Push, 36 on Pull, 28 on Legs — grouped by pattern, each labelled with when you
 last did it (`Dips · 3d ago`). Type to filter by name; the groups narrow as
 you go. If you want to chase a lift this week, pick it, whatever the rotation
 had planned.
 
-A few movements are offered on more than one day: dumbbell shrugs on Pull and
-Legs, and the alternating cable lateral raise and both dip grips on Push and
-Pull. They keep the same id wherever they appear, so each has one progression
-line no matter which day you did it on.
+A few movements are offered on more than one day: barbell and dumbbell shrugs
+on Push, Pull, and Legs (dumbbell only on Legs), and the alternating cable
+lateral raise and both dip grips on Push and Pull. They keep the same id
+wherever they appear, so each has one progression line no matter which day
+you did it on.
 
 Choosing a movement brings its own prescription with it: a programmed movement
 keeps its slot's waved numbers, anything else takes its pattern group's, so

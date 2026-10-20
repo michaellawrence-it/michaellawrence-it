@@ -5,7 +5,7 @@
   'use strict';
 
   /* Shown in Settings so you can confirm your phone picked up an edit. */
-  const BUILD = '2026-10-20.1';
+  const BUILD = '2026-10-20.2';
 
   /* ---------------------------------------------------------------------
      Storage contract — read this before changing anything below.
