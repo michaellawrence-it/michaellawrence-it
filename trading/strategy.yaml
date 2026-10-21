@@ -1,0 +1,60 @@
+# ============================================================================
+# TRADING RULEBOOK — $1,000 STARTER (paper phase)
+# Starter values sized for a $1,000 budget so paper trading can begin while
+# the real guidelines are worked out. Every number here is meant to be tuned
+# against the paper journal and backtest results. The daily routine treats
+# this file as exhaustive: anything not permitted here does not happen.
+# trading/guard.py enforces the order-level limits deterministically.
+# ============================================================================
+
+mode: paper                     # paper | live   (live forces per-order approval)
+
+budget:
+  total_usd: 1000               # hard cap; fund the live account with exactly this
+  max_deployed_pct: 80          # at most $800 in positions; $200 stays as buffer
+  reserve:
+    pct_of_realized_gains: 30   # 30% of every realized gain moves to reserve
+    reserve_is_tradable: false  # reserve cash is never redeployed by the routine
+
+universe:                       # starter list: liquid ETFs + mega-caps
+  tickers: [SPY, QQQ, IWM, XLK, XLF, XLE, XLV, AAPL, MSFT, NVDA, AMZN, GOOGL, META]
+  max_positions: 4              # $200 slots x 4 = $800 = max deployed
+  min_avg_dollar_volume: 5000000
+
+entries:                        # a buyable "dip"
+  dip_trigger:
+    lookback_days: 20
+    drop_pct_from_high: 5       # at least 5% below its 20-day closing high
+  confirmation:
+    min_volume_ratio: 1.0       # prior day's volume vs 30-day average
+    skip_if_earnings_within_days: 3
+  sizing:
+    per_trade_usd: 200          # fractional shares make any ticker affordable
+    max_per_symbol_usd: 200     # one position per ticker, no averaging down
+  order_type: limit
+  limit_offset_pct: 0.2         # limit price 0.2% below last quote
+
+exits:
+  take_profit_pct: 8
+  stop_loss_pct: 4
+  max_hold_days: 10             # time exit keeps the day/week cadence
+
+risk:
+  use_margin: false
+  allow_short_selling: false
+  allow_options: false
+  max_trades_per_day: 3         # buys per day (exits are never capped)
+  daily_loss_halt_pct: 3        # down 3% on the day -> stop for the day
+  weekly_loss_halt_pct: 6       # down 6% on the week -> halt until human review
+
+schedule:
+  run_days: [mon, tue, wed, thu, fri]
+  run_time_et: "10:12"          # after the opening auction volatility settles
+  skip_market_holidays: true
+
+approvals:
+  live_orders_require_approval: true    # enforced by guard.py, not just policy
+  paper_orders_require_approval: false
+notifications:
+  daily_report: true
+  alert_on_halt: true

@@ -12,8 +12,9 @@ notify; do not improvise rules.
 ## 1. Orient
 - Read `trading/strategy.yaml`, `trading/journal/state.json`, and the most recent
   daily report. Verify the market is open today (skip holidays per config).
-- Confirm which mode you're in (`paper` | `live`). Verify the MCP account endpoint
-  matches (paper account ↔ paper mode). **Mismatch → stop and notify.**
+- Confirm which mode you're in (`paper` | `live`) and use only the matching MCP
+  server: `alpaca-paper` or `alpaca-live`. If that server's tools are missing or
+  return 401, **stop and notify.**
 - If a `halt` flag is set in `state.json`, do nothing except write a report noting
   the halt. A human clears halts.
 
@@ -31,18 +32,22 @@ notify; do not improvise rules.
 ## 4. Scan for entries
 - Evaluate each universe ticker against `entries.dip_trigger` and `confirmation`.
 - Respect every cap: `max_positions`, `max_deployed_pct`, `max_per_symbol_usd`,
-  `max_trades_per_day`, PDT guard, and loss-halt checks — in that order, before
-  sizing any order.
+  `max_trades_per_day`, and loss-halt checks, in that order, before sizing any
+  order. Size buys as limit orders with explicit `qty` and `limit_price` so
+  `guard.py` can verify the cost.
 
 ## 5. Execute
 - **Paper mode:** place the queued orders directly.
-- **Live mode:** place nothing autonomously. Present the queued orders (ticker,
-  side, size, limit, rationale, rule citations) and await explicit human approval
-  for each; unapproved orders expire at end of run and are logged as `proposed`.
+- **Live mode:** before each order, present it (ticker, side, size, limit,
+  rationale, rule citations). `guard.py` forces an approval prompt on every live
+  order. Declined or unanswered orders are logged as `proposed` and expire at the
+  end of the run.
+- If `guard.py` blocks a call, don't retry it with altered parameters. Log the
+  block reason and move on.
 
 ## 6. Journal & report
 - Append fills to `trades.csv`; update `state.json` (positions, cash, reserve,
-  halt flags, PDT counter).
+  halt flags). Commit `guard-log.jsonl` along with them.
 - Write `journal/reports/YYYY-MM-DD.md`: what was scanned, what triggered, what
   was skipped and which rule skipped it, P&L snapshot, reserve balance.
 - Commit and push the journal changes. Send the daily summary notification.

@@ -44,7 +44,6 @@ risk:
   max_trades_per_day: 3
   daily_loss_halt_pct: 3        # portfolio down this much today → stop for the day
   weekly_loss_halt_pct: 6       # ...this much on the week → stop until human review
-  respect_pdt_rule: true        # never place a 4th day-trade in 5 sessions <$25k
 
 schedule:
   run_days: [mon, tue, wed, thu, fri]
